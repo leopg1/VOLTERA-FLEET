@@ -1,0 +1,76 @@
+# ---- Secrete / configuratie locala ----
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# ---- Node / Next.js (voltera_fleet_dashboard, voltera_fleet_backend) ----
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts.bak
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# ---- Flutter / Dart (obd_droid_flutter) ----
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+**/.fvm/
+*.lock.local
+
+# ---- Android ----
+**/android/.gradle/
+**/android/local.properties
+**/android/captures/
+**/android/key.properties
+**/android/app/release/
+**/android/app/debug/
+**/android/.cxx/
+**/android/app/.cxx/
+*.keystore
+*.jks
+hs_err_pid*.log
+replay_pid*.log
+
+# ---- iOS / macOS ----
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/App.framework
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Flutter/ephemeral/
+.DS_Store
+
+# ---- IDE / editor ----
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.claude/
+.history/
+*.swp
+*.swo
+
+# ---- Windows ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---- Logs / temp ----
+*.log
+*.tmp
+*.bak

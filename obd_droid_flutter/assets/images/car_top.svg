@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 600" fill="none">
+  <!-- Outer body silhouette -->
+  <path d="M30 100
+           C 30 60, 70 30, 140 30
+           C 210 30, 250 60, 250 100
+           L 250 230
+           L 270 240
+           L 270 360
+           L 250 370
+           L 250 490
+           C 250 530, 210 565, 140 570
+           C 70 565, 30 530, 30 490
+           L 30 370
+           L 10 360
+           L 10 240
+           L 30 230
+           Z"
+        fill="white" fill-opacity="0.04"
+        stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Hood detail line -->
+  <path d="M55 95 C 80 75, 200 75, 225 95"
+        stroke="white" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+  <!-- Front windshield -->
+  <path d="M55 130 L225 130 L210 175 L70 175 Z"
+        fill="white" fill-opacity="0.18"
+        stroke="white" stroke-width="1.4" stroke-linejoin="round"/>
+
+  <!-- Cabin / roof -->
+  <rect x="68" y="180" width="144" height="195" rx="8"
+        fill="white" fill-opacity="0.07"
+        stroke="white" stroke-width="1.2"/>
+
+  <!-- Center dashed line -->
+  <line x1="140" y1="200" x2="140" y2="355"
+        stroke="white" stroke-width="1.2"
+        stroke-dasharray="6 6" opacity="0.45"/>
+
+  <!-- Rear windshield -->
+  <path d="M70 380 L210 380 L225 425 L55 425 Z"
+        fill="white" fill-opacity="0.18"
+        stroke="white" stroke-width="1.4" stroke-linejoin="round"/>
+
+  <!-- Rear deck detail -->
+  <path d="M55 460 C 80 478, 200 478, 225 460"
+        stroke="white" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+  <!-- Wheels (4) -->
+  <rect x="-2" y="120" width="32" height="68" rx="6"
+        fill="white" fill-opacity="0.85"/>
+  <rect x="250" y="120" width="32" height="68" rx="6"
+        fill="white" fill-opacity="0.85"/>
+  <rect x="-2" y="412" width="32" height="68" rx="6"
+        fill="white" fill-opacity="0.85"/>
+  <rect x="250" y="412" width="32" height="68" rx="6"
+        fill="white" fill-opacity="0.85"/>
+
+  <!-- Side mirrors -->
+  <path d="M22 168 L8 175 L8 185 L22 188 Z" fill="white"/>
+  <path d="M258 168 L272 175 L272 185 L258 188 Z" fill="white"/>
+
+  <!-- Headlights -->
+  <ellipse cx="60" cy="55" rx="18" ry="6" fill="white" opacity="0.85"/>
+  <ellipse cx="220" cy="55" rx="18" ry="6" fill="white" opacity="0.85"/>
+
+  <!-- Taillights -->
+  <rect x="42" y="540" width="50" height="6" rx="3" fill="white" opacity="0.7"/>
+  <rect x="188" y="540" width="50" height="6" rx="3" fill="white" opacity="0.7"/>
+
+  <!-- Subtle hood vents -->
+  <line x1="120" y1="65" x2="120" y2="78" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="140" y1="65" x2="140" y2="78" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="160" y1="65" x2="160" y2="78" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+</svg>
