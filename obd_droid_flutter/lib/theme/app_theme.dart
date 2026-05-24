@@ -1,80 +1,83 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-/// Premium automotive dark theme. **Single accent**: cyan #00D4FF.
-/// Status colors (green/orange/red) sunt folosite EXCLUSIV pentru a indica
-/// stari OBD (ok/warning/critical) — nu pentru decor.
+import '../design/theme/voltera_theme.dart';
+import '../design/tokens/colors.dart';
+
+/// SHIM back-compat. Vechiul API ramane (AppColors / AppText / AppTheme)
+/// dar valorile vin din noul design system. Pe masura ce ecranele se
+/// refactoreaza la VColors / VType / context.tokens, simbolurile de aici
+/// se elimina treptat. Acest fisier va disparea complet la finalul migrarii.
 ///
-/// Tot textul foloseste Orbitron pentru valori numerice si Rajdhani pentru
-/// label-uri/body. Fonturile sunt bundled in assets/fonts/ si servite prin
-/// `google_fonts` — `allowRuntimeFetching = false` in main(), 100% offline.
+/// Reguli pentru cod nou:
+///  - NU folositi AppColors / AppText in cod nou.
+///  - Folositi `context.tokens.x` pentru culori si VType pentru text.
 class AppColors {
-  // Background & surfaces
-  static const bg = Color(0xFF07090F);
-  static const surface = Color(0xFF0D1117);
-  static const surfaceHi = Color(0xFF131A22);
-  static const surfaceLo = Color(0xFF0A0D14);
+  AppColors._();
 
-  // Subtle borders
-  static const border = Color(0x1FFFFFFF); // 12% white
-  static const borderHi = Color(0x33FFFFFF); // 20% white
+  // Surfaces (mapate la noul ink scale)
+  static const Color bg = VColors.ink950;
+  static const Color surface = VColors.ink900;
+  static const Color surfaceHi = VColors.ink800;
+  static const Color surfaceLo = VColors.ink950;
 
-  // Single accent
-  static const cyan = Color(0xFF00D4FF);
-  static const cyanGlow = Color(0x6600D4FF);
-  static const cyanDeep = Color(0xFF0091B8);
+  // Borders
+  static const Color border = VColors.hairline;
+  static const Color borderHi = VColors.hairlineStrong;
 
-  // OBD status semantics (used only for status, never decoration)
-  static const ok = Color(0xFF00E676);
-  static const warn = Color(0xFFFFAB00);
-  static const danger = Color(0xFFFF1744);
+  // Old "cyan" → noul accent Voltera Blue
+  static const Color cyan = VColors.accent500;
+  static const Color cyanGlow = Color(0x664F86FF);
+  static const Color cyanDeep = VColors.accent600;
+
+  // Semantic — neschimbate logic, valori actualizate la noul scale
+  static const Color ok = VColors.ok500;
+  static const Color warn = VColors.warn500;
+  static const Color danger = VColors.danger500;
 
   // Text
-  static const text = Color(0xFFFFFFFF);
-  static const textMuted = Color(0xFF8892A4);
-  static const textDim = Color(0xFF4A5260);
+  static const Color text = VColors.textStrong;
+  static const Color textMuted = VColors.textMuted;
+  static const Color textDim = VColors.textDisabled;
 
-  // Gradients
-  static const cyanGradient = LinearGradient(
-    colors: [Color(0xFF00D4FF), Color(0xFF0091B8)],
+  // Gradients (pastrate pentru ecranele vechi; in noul sistem se evita)
+  static const LinearGradient cyanGradient = LinearGradient(
+    colors: [VColors.accent500, VColors.accent600],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  static const cardGradient = LinearGradient(
-    colors: [Color(0xFF131A22), Color(0xFF0D1117)],
+  static const LinearGradient cardGradient = LinearGradient(
+    colors: [VColors.ink800, VColors.ink900],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // Back-compat aliases (vechi screens). Toate decorative trec pe cyan.
-  static const accent = cyan;
-  static const accentDeep = cyanDeep;
-  static const orange = cyan;
-  static const red = danger;
-  static const green = ok;
-  static const yellow = warn;
-  static const stroke = border;
-  static const primary = cyan;
-  static const gradientCyan = cyanGradient;
-  static const gradientOrange = cyanGradient;
-  static const gradientRed = LinearGradient(
-    colors: [Color(0xFFFF1744), Color(0xFFB71C1C)],
+  // Aliasuri istorice — toate pe accent
+  static const Color accent = cyan;
+  static const Color accentDeep = cyanDeep;
+  static const Color orange = cyan;
+  static const Color red = danger;
+  static const Color green = ok;
+  static const Color yellow = warn;
+  static const Color stroke = border;
+  static const Color primary = cyan;
+  static const LinearGradient gradientCyan = cyanGradient;
+  static const LinearGradient gradientOrange = cyanGradient;
+  static const LinearGradient gradientRed = LinearGradient(
+    colors: [VColors.danger500, Color(0xFFB71C1C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 }
 
-/// Typography helpers — Orbitron pentru numere, Rajdhani pentru text.
-/// Fonturile sunt declarate ca asset families in pubspec.yaml (Orbitron e
-/// font variable mapat la toate weight-urile, Rajdhani e static per weight).
+/// Helpers tipografice istorice. Numerele vechi vor continua sa randeze
+/// cu Orbitron / Rajdhani pana cand ecranul respectiv migreaza la VType.
 class AppText {
   AppText._();
 
   static const String orbitron = 'Orbitron';
   static const String rajdhani = 'Rajdhani';
 
-  /// Orbitron — Industrial, futuristic. Numerical values, gauge centers.
   static TextStyle digital({
     double size = 32,
     Color color = AppColors.cyan,
@@ -91,7 +94,6 @@ class AppText {
         fontFeatures: const [FontFeature.tabularFigures()],
       );
 
-  /// Rajdhani — Clean, technical. Labels, captions, uppercase chips.
   static TextStyle label({
     double size = 11,
     Color color = AppColors.textMuted,
@@ -107,7 +109,6 @@ class AppText {
         height: 1.1,
       );
 
-  /// Body — running text, descriptions.
   static TextStyle body({
     double size = 14,
     Color color = AppColors.text,
@@ -122,7 +123,6 @@ class AppText {
         height: 1.35,
       );
 
-  /// Title — Rajdhani Bold for screen headers.
   static TextStyle title({
     double size = 20,
     Color color = AppColors.text,
@@ -137,105 +137,8 @@ class AppText {
       );
 }
 
+/// Shim — toate apelurile la AppTheme.dark() returneaza acum noul tema Voltera.
 class AppTheme {
-  static ThemeData dark() {
-    final base = ThemeData.dark(useMaterial3: true);
-    return base.copyWith(
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.cyan,
-        secondary: AppColors.cyan,
-        surface: AppColors.surface,
-        onPrimary: Colors.black,
-        onSurface: AppColors.text,
-        error: AppColors.danger,
-      ),
-      scaffoldBackgroundColor: AppColors.bg,
-      canvasColor: AppColors.surface,
-      cardColor: AppColors.surface,
-      dividerColor: AppColors.border,
-      appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        centerTitle: false,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: AppText.title(size: 18),
-        iconTheme: const IconThemeData(color: AppColors.text),
-      ),
-      cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        margin: EdgeInsets.zero,
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.cyan,
-          foregroundColor: Colors.black,
-          minimumSize: const Size(0, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          textStyle: AppText.label(
-            size: 13,
-            color: Colors.black,
-            weight: FontWeight.w800,
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
-          side: const BorderSide(color: AppColors.borderHi),
-          foregroundColor: AppColors.cyan,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.cyan,
-          textStyle:
-              AppText.label(color: AppColors.cyan, weight: FontWeight.w700),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.surfaceHi,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.cyan, width: 1.4),
-        ),
-        labelStyle: AppText.body(color: AppColors.textMuted, size: 14),
-        hintStyle: AppText.body(color: AppColors.textDim, size: 14),
-      ),
-      listTileTheme: const ListTileThemeData(
-        iconColor: AppColors.textMuted,
-        textColor: AppColors.text,
-      ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.cyan,
-        linearTrackColor: AppColors.surfaceHi,
-      ),
-      iconTheme: const IconThemeData(color: AppColors.text),
-      textTheme: base.textTheme.apply(
-        fontFamily: AppText.rajdhani,
-        bodyColor: AppColors.text,
-        displayColor: AppColors.text,
-      ),
-    );
-  }
+  AppTheme._();
+  static ThemeData dark() => VolteraTheme.dark();
 }
