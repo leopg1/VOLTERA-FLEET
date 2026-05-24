@@ -2,22 +2,26 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
+import '../core/models/connection_state.dart';
+import '../design/design.dart';
 import '../features/connect/connect_screen.dart';
+import '../providers/connection_provider.dart';
 import '../providers/live_data_provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/car_heatmap.dart';
-import '../widgets/connection_status_bar.dart';
-import '../widgets/live_telemetry_chart.dart';
-import '../widgets/side_metric_card.dart';
-import '../widgets/speedometer_gauge.dart';
-import '../widgets/tachometer_gauge.dart';
-import '../widgets/wide_metric_card.dart';
+import '../providers/vehicle_provider.dart';
 import 'settings_screen.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
+class TelemetrySample {
+  final DateTime t;
+  final double rpm;
+  final double engineTemp;
+  TelemetrySample(this.t, this.rpm, this.engineTemp);
+}
+
+/// Dashboard — focus: stare instanta a vehiculului in 0.5s.
+/// Hero: speed + live arc meter. Sub-hero: 2x2 MetricBlock. Card unic chart 60s.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -37,7 +41,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final live = context.read<LiveDataProvider>();
       final rpm = live.latest[0x0C]?.value ?? 0.0;
       final temp = live.latest[0x05]?.value ?? 0.0;
-
       _samples.addLast(TelemetrySample(DateTime.now(), rpm, temp));
       final cutoff = DateTime.now().subtract(const Duration(seconds: 60));
       while (_samples.isNotEmpty && _samples.first.t.isBefore(cutoff)) {
@@ -61,400 +64,320 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final coolant = live.latest[0x05]?.value;
     final battery = live.latest[0x42]?.value;
     final engineLoad = live.latest[0x04]?.value;
-    final maf = live.latest[0x10]?.value;
-    final iat = live.latest[0x0F]?.value;
     final throttle = live.latest[0x11]?.value;
-    final oilTemp = live.latest[0x5C]?.value;
 
-    return Scaffold(
-      body: SafeArea(
+    return VScaffold(
+      appBar: VAppBar(
+        title: 'Dashboard',
+        actions: [
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 120),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
+          padding: const EdgeInsets.fromLTRB(0, VSpace.s12, 0, VSpace.s24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1) Top status bar with settings shortcut
-              Row(
-                children: [
-                  Expanded(
-                    child: ConnectionStatusBar(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const ConnectScreen()),
-                      ),
-                    ),
-                  ),
-                  const Gap(8),
-                  Material(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()),
-                      ),
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Icon(
-                          Icons.settings_rounded,
-                          color: AppColors.cyan,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-                  .animate()
-                  .fadeIn(duration: 350.ms)
-                  .slideY(begin: -0.2, end: 0, curve: Curves.easeOut),
+              // 1) Status pill (single row, no decoration)
+              const _ConnectionRow(),
 
-              const Gap(14),
+              const SizedBox(height: VSpace.s20),
 
-              // 2) Two gauges side by side
-              SizedBox(
-                height: 230,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _GaugePanel(
-                        label: 'SPEED',
-                        child: SpeedometerGauge(value: speed),
-                      ).animate(delay: 50.ms).fadeIn(duration: 400.ms),
-                    ),
-                    const Gap(10),
-                    Expanded(
-                      child: _GaugePanel(
-                        label: 'TACHOMETER',
-                        child: TachometerGauge(value: rpm),
-                      ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
-                    ),
-                  ],
-                ),
+              // 2) Hero — Speed with live arc
+              _SpeedHero(speed: speed, rpm: rpm),
+
+              const SizedBox(height: VSpace.s16),
+
+              // 3) Secondary metrics — 2x2 grid
+              _SecondaryGrid(
+                coolant: coolant,
+                battery: battery,
+                engineLoad: engineLoad,
+                throttle: throttle,
               ),
 
-              const Gap(12),
+              const SizedBox(height: VSpace.s16),
 
-              // 3) Car SVG center + side metrics
-              SizedBox(
-                height: 230,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: SideMetricCard(
-                        icon: Icons.thermostat_rounded,
-                        label: 'ENGINE TEMP',
-                        value: coolant?.toStringAsFixed(0),
-                        unit: '°C',
-                        statusColor: _tempStatus(coolant),
-                      ).animate(delay: 150.ms).fadeIn(duration: 400.ms).slideX(
-                          begin: -0.15, end: 0),
-                    ),
-                    const Gap(10),
-                    Expanded(
-                      flex: 6,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Text('VEHICLE · HEATMAP',
-                                    style: AppText.label(size: 9.5)),
-                                const Spacer(),
-                                Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.danger,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 4),
-                                child: CarHeatmap(
-                                  coolant: coolant,
-                                  intakeTemp: iat,
-                                  engineLoad: engineLoad,
-                                  throttle: throttle,
-                                  speed: speed,
-                                  oilTemp: oilTemp,
-                                ),
-                              ),
-                            ),
-                            _ThrottleBar(
-                              value: (throttle ?? 0) / 100,
-                            ),
-                          ],
-                        ),
-                      ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
-                    ),
-                    const Gap(10),
-                    Expanded(
-                      flex: 4,
-                      child: SideMetricCard(
-                        icon: Icons.battery_charging_full_rounded,
-                        label: 'BATTERY',
-                        value: battery?.toStringAsFixed(2),
-                        unit: 'V',
-                        statusColor: _batteryStatus(battery),
-                        align: CrossAxisAlignment.end,
-                      ).animate(delay: 250.ms).fadeIn(duration: 400.ms).slideX(
-                          begin: 0.15, end: 0),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Gap(12),
-
-              // 4) Coolant + MAF row
-              Row(
-                children: [
-                  Expanded(
-                    child: WideMetricCard(
-                      icon: Icons.water_drop_rounded,
-                      label: 'COOLANT',
-                      value: coolant?.toStringAsFixed(0),
-                      unit: '°C',
-                      progress: ((coolant ?? 0) / 130).clamp(0.0, 1.0),
-                      statusColor: _tempStatus(coolant),
-                    ).animate(delay: 300.ms).fadeIn(duration: 400.ms).slideY(
-                        begin: 0.2, end: 0),
-                  ),
-                  const Gap(10),
-                  Expanded(
-                    child: WideMetricCard(
-                      icon: Icons.air_rounded,
-                      label: 'MAF SENSOR',
-                      value: maf?.toStringAsFixed(1),
-                      unit: 'g/s',
-                      progress: ((maf ?? 0) / 100).clamp(0.0, 1.0),
-                      statusColor: AppColors.cyan,
-                    ).animate(delay: 350.ms).fadeIn(duration: 400.ms).slideY(
-                        begin: 0.2, end: 0),
-                  ),
-                ],
-              ),
-
-              const Gap(12),
-
-              // Engine load — horizontal mini stat (single accent)
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('ENGINE LOAD',
-                            style: AppText.label(size: 9.5, letterSpacing: 1.8)),
-                        const Spacer(),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              engineLoad?.toStringAsFixed(0) ?? '--',
-                              style: AppText.digital(
-                                  size: 18, color: AppColors.cyan),
-                            ),
-                            const SizedBox(width: 3),
-                            Text('%',
-                                style: AppText.body(
-                                    size: 11, color: AppColors.textMuted)),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Gap(10),
-                    _SegmentedBar(
-                      value: (engineLoad ?? 0) / 100,
-                      segments: 24,
-                    ),
-                  ],
-                ),
-              ).animate(delay: 400.ms).fadeIn(duration: 400.ms).slideY(
-                  begin: 0.2, end: 0),
-
-              const Gap(12),
-
-              // 5) Live chart
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6, height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.cyan,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: AppColors.cyan, blurRadius: 6),
-                            ],
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('TELEMETRY · LAST 60s',
-                            style: AppText.label(size: 10, letterSpacing: 2)),
-                        const Spacer(),
-                        _LegendDot(color: AppColors.cyan, label: 'RPM'),
-                        const Gap(12),
-                        _LegendDot(
-                            color: AppColors.warn,
-                            label: 'TEMP',
-                            dashed: true),
-                      ],
-                    ),
-                    const Gap(8),
-                    SizedBox(
-                      height: 180,
-                      child: LiveTelemetryChart(
-                        samples: _samples.toList(growable: false),
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate(delay: 450.ms).fadeIn(duration: 400.ms).slideY(
-                  begin: 0.2, end: 0),
+              // 4) Telemetry chart — single series RPM, last 60s
+              _TelemetryCard(samples: _samples.toList(growable: false)),
             ],
           ),
         ),
       ),
     );
   }
-
-  Color _tempStatus(double? c) {
-    if (c == null) return AppColors.cyan;
-    if (c < 60) return AppColors.cyan;
-    if (c < 95) return AppColors.ok;
-    if (c < 105) return AppColors.warn;
-    return AppColors.danger;
-  }
-
-  Color _batteryStatus(double? v) {
-    if (v == null) return AppColors.cyan;
-    if (v < 11.5) return AppColors.danger;
-    if (v < 12.4) return AppColors.warn;
-    return AppColors.ok;
-  }
 }
 
-class _GaugePanel extends StatelessWidget {
-  final String label;
-  final Widget child;
-  const _GaugePanel({required this.label, required this.child});
+// ─────────────────────────────────────────────────────────────────────
+// Connection row
+// ─────────────────────────────────────────────────────────────────────
+
+class _ConnectionRow extends StatelessWidget {
+  const _ConnectionRow();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+    final conn = context.watch<ConnectionProvider>();
+    final vehicle = context.watch<VehicleProvider>().vehicle;
+    final s = conn.state;
+    final (label, status, meta, pulse) = _statusMap(s, conn, vehicle?.displayName);
+
+    return ConnectionPill(
+      label: label,
+      meta: meta,
+      status: status,
+      pulse: pulse,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ConnectScreen()),
       ),
+    );
+  }
+
+  (String, VStatus, String?, bool) _statusMap(
+    ObdLinkState s,
+    ConnectionProvider conn,
+    String? vehicleName,
+  ) {
+    final adapterName = conn.activeAdapter?.name;
+    final meta = vehicleName ?? adapterName;
+    switch (s) {
+      case ObdLinkState.disconnected:
+        return ('Offline', VStatus.neutral, 'Tap to connect', false);
+      case ObdLinkState.scanning:
+        return ('Scanning', VStatus.warn, meta, true);
+      case ObdLinkState.connecting:
+        return ('Linking', VStatus.warn, meta, true);
+      case ObdLinkState.initializing:
+        return ('Initializing', VStatus.warn, meta, true);
+      case ObdLinkState.ready:
+        return ('Live', VStatus.ok, meta, true);
+      case ObdLinkState.busy:
+        return ('Busy', VStatus.info, meta, false);
+      case ObdLinkState.error:
+        return ('Error', VStatus.danger, meta, false);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Speed hero card
+// ─────────────────────────────────────────────────────────────────────
+
+class _SpeedHero extends StatelessWidget {
+  final double speed;
+  final double rpm;
+  const _SpeedHero({required this.speed, required this.rpm});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return VCard.hero(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Row(
-              children: [
-                Text(label,
-                    style: AppText.label(size: 9.5, letterSpacing: 2)),
-                const Spacer(),
-                Container(
-                  width: 5, height: 5,
-                  decoration: const BoxDecoration(
-                    color: AppColors.cyan,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
+          SizedBox(
+            height: 260,
+            child: LiveArcMeter(
+              value: speed,
+              max: 240,
+              label: 'Speed',
+              unit: 'km/h',
+              status: VStatus.info,
             ),
           ),
-          Expanded(child: child),
+          const SizedBox(height: VSpace.s12),
+          Divider(color: t.hairline, height: 1),
+          const SizedBox(height: VSpace.s16),
+          Row(
+            children: [
+              Expanded(
+                child: MetricBlock(
+                  label: 'RPM',
+                  value: rpm.toStringAsFixed(0),
+                  unit: 'rpm',
+                  size: MetricSize.md,
+                ),
+              ),
+              Container(width: 1, height: 28, color: t.hairline),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: VSpace.s16),
+                  child: MetricBlock(
+                    label: 'Eco score',
+                    value: _ecoFromSpeedRpm(speed, rpm).toStringAsFixed(0),
+                    unit: '/100',
+                    size: MetricSize.md,
+                    status: _ecoFromSpeedRpm(speed, rpm) >= 70
+                        ? VStatus.ok
+                        : (_ecoFromSpeedRpm(speed, rpm) >= 40
+                            ? VStatus.warn
+                            : VStatus.danger),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
+
+  // Heuristic minor — scopul e doar un signal calm pe hero.
+  // Eco score real se calculeaza in EcoProvider.
+  int _ecoFromSpeedRpm(double speed, double rpm) {
+    if (speed <= 0) return 100;
+    final eff = (speed / (rpm.clamp(800, 6000) / 1000));
+    return (eff * 6).clamp(0, 100).round();
+  }
 }
 
-class _ThrottleBar extends StatelessWidget {
-  final double value;
-  const _ThrottleBar({required this.value});
+// ─────────────────────────────────────────────────────────────────────
+// 2x2 secondary metric grid
+// ─────────────────────────────────────────────────────────────────────
+
+class _SecondaryGrid extends StatelessWidget {
+  final double? coolant;
+  final double? battery;
+  final double? engineLoad;
+  final double? throttle;
+
+  const _SecondaryGrid({
+    required this.coolant,
+    required this.battery,
+    required this.engineLoad,
+    required this.throttle,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Coolant',
+                  value: coolant?.toStringAsFixed(0),
+                  unit: '°C',
+                  size: MetricSize.lg,
+                  status: _coolantStatus(coolant),
+                  leadingIcon: Icons.thermostat_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Battery',
+                  value: battery?.toStringAsFixed(1),
+                  unit: 'V',
+                  size: MetricSize.lg,
+                  status: _batteryStatus(battery),
+                  leadingIcon: Icons.battery_charging_full_rounded,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: VSpace.cardGap),
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Engine load',
+                  value: engineLoad?.toStringAsFixed(0),
+                  unit: '%',
+                  size: MetricSize.lg,
+                  leadingIcon: Icons.bolt_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Throttle',
+                  value: throttle?.toStringAsFixed(0),
+                  unit: '%',
+                  size: MetricSize.lg,
+                  leadingIcon: Icons.speed_rounded,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  VStatus _coolantStatus(double? c) {
+    if (c == null) return VStatus.neutral;
+    if (c < 60) return VStatus.info;
+    if (c < 95) return VStatus.ok;
+    if (c < 105) return VStatus.warn;
+    return VStatus.danger;
+  }
+
+  VStatus _batteryStatus(double? v) {
+    if (v == null) return VStatus.neutral;
+    if (v < 11.5) return VStatus.danger;
+    if (v < 12.4) return VStatus.warn;
+    return VStatus.ok;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Telemetry chart — single accent series, no glow
+// ─────────────────────────────────────────────────────────────────────
+
+class _TelemetryCard extends StatelessWidget {
+  final List<TelemetrySample> samples;
+  const _TelemetryCard({required this.samples});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return VCard(
+      padding: const EdgeInsets.all(VSpace.s20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('THROTTLE',
-                  style: AppText.label(size: 9, letterSpacing: 1.6)),
-              const Spacer(),
-              Text(
-                '${(value * 100).toStringAsFixed(0)}%',
-                style: AppText.digital(size: 11, color: AppColors.cyan),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Engine RPM',
+                        style: VType.title18.copyWith(color: t.textStrong)),
+                    const SizedBox(height: 2),
+                    Text('Last 60 seconds',
+                        style: VType.body13.copyWith(color: t.textMuted)),
+                  ],
+                ),
+              ),
+              const StatusBadge(
+                label: 'LIVE',
+                status: VStatus.info,
+                icon: Icons.fiber_manual_record_rounded,
+                dense: true,
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Stack(
-              children: [
-                Container(height: 4, color: AppColors.surfaceLo),
-                FractionallySizedBox(
-                  widthFactor: value.clamp(0.0, 1.0),
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.cyanGradient,
-                      boxShadow: [
-                        BoxShadow(
-                            color: AppColors.cyan.withOpacity(0.5),
-                            blurRadius: 4),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: VSpace.s16),
+          SizedBox(
+            height: 160,
+            child: _RpmChart(samples: samples),
           ),
         ],
       ),
@@ -462,75 +385,47 @@ class _ThrottleBar extends StatelessWidget {
   }
 }
 
-class _SegmentedBar extends StatelessWidget {
-  final double value; // 0..1
-  final int segments;
-  const _SegmentedBar({required this.value, this.segments = 20});
+class _RpmChart extends StatelessWidget {
+  final List<TelemetrySample> samples;
+  const _RpmChart({required this.samples});
 
   @override
   Widget build(BuildContext context) {
-    final filled = (value * segments).round();
-    return Row(
-      children: List.generate(segments, (i) {
-        final on = i < filled;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1.2),
-            child: Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: on ? AppColors.cyan : AppColors.surfaceLo,
-                borderRadius: BorderRadius.circular(2),
-                boxShadow: on
-                    ? [
-                        BoxShadow(
-                            color: AppColors.cyan.withOpacity(0.6),
-                            blurRadius: 3),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
+    final t = context.tokens;
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(seconds: 60));
 
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  final bool dashed;
-  const _LegendDot(
-      {required this.color, required this.label, this.dashed = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 14, height: 2,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(1),
-          ),
-          child: dashed
-              ? Row(
-                  children: List.generate(
-                    3,
-                    (i) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 0.5),
-                        child: Container(color: color),
-                      ),
-                    ),
-                  ),
-                )
-              : null,
+    return SfCartesianChart(
+      backgroundColor: Colors.transparent,
+      plotAreaBorderWidth: 0,
+      plotAreaBackgroundColor: Colors.transparent,
+      margin: const EdgeInsets.fromLTRB(0, 4, 0, 0),
+      primaryXAxis: DateTimeAxis(
+        minimum: start,
+        maximum: now,
+        majorGridLines: MajorGridLines(width: 0.5, color: t.hairline),
+        majorTickLines: const MajorTickLines(width: 0),
+        axisLine: const AxisLine(width: 0),
+        labelStyle: VType.label11.copyWith(color: t.textDisabled),
+      ),
+      primaryYAxis: NumericAxis(
+        minimum: 0,
+        maximum: 8000,
+        interval: 2000,
+        majorGridLines: MajorGridLines(width: 0.5, color: t.hairline),
+        majorTickLines: const MajorTickLines(width: 0),
+        axisLine: const AxisLine(width: 0),
+        labelStyle: VType.label11.copyWith(color: t.textDisabled),
+      ),
+      series: <CartesianSeries<TelemetrySample, DateTime>>[
+        FastLineSeries<TelemetrySample, DateTime>(
+          name: 'RPM',
+          dataSource: samples,
+          xValueMapper: (s, _) => s.t,
+          yValueMapper: (s, _) => s.rpm,
+          color: t.accent,
+          width: 1.5,
         ),
-        const SizedBox(width: 5),
-        Text(label, style: AppText.label(size: 9.5, color: color)),
       ],
     );
   }

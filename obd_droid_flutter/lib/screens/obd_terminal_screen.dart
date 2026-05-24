@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
+import '../design/design.dart';
 import '../providers/connection_provider.dart';
-import '../theme/app_theme.dart';
 
-/// Raw OBD/AT command terminal — useful for diagnostics and debugging
-/// the WiFi adapter when responses don't match expectations.
+/// OBD/AT raw terminal — console log + input + quick commands.
 class ObdTerminalScreen extends StatefulWidget {
   const ObdTerminalScreen({super.key});
 
@@ -22,15 +20,15 @@ class _ObdTerminalScreenState extends State<ObdTerminalScreen> {
   bool _running = false;
 
   static const _quickCommands = <_QuickCmd>[
-    _QuickCmd('ATZ', 'Reset adaptor'),
-    _QuickCmd('ATI', 'Identifica adaptorul'),
-    _QuickCmd('ATRV', 'Tensiune baterie'),
-    _QuickCmd('ATSP0', 'Auto protocol'),
-    _QuickCmd('ATDP', 'Protocol curent'),
-    _QuickCmd('0100', 'PID-uri suportate 01-20'),
-    _QuickCmd('010C', 'Engine RPM'),
-    _QuickCmd('010D', 'Vehicle Speed'),
-    _QuickCmd('0105', 'Coolant Temp'),
+    _QuickCmd('ATZ', 'Reset'),
+    _QuickCmd('ATI', 'Identify'),
+    _QuickCmd('ATRV', 'Battery V'),
+    _QuickCmd('ATSP0', 'Auto proto'),
+    _QuickCmd('ATDP', 'Current proto'),
+    _QuickCmd('0100', 'PIDs 01-20'),
+    _QuickCmd('010C', 'RPM'),
+    _QuickCmd('010D', 'Speed'),
+    _QuickCmd('0105', 'Coolant'),
     _QuickCmd('0902', 'VIN'),
     _QuickCmd('03', 'Stored DTCs'),
     _QuickCmd('07', 'Pending DTCs'),
@@ -48,7 +46,7 @@ class _ObdTerminalScreenState extends State<ObdTerminalScreen> {
     final engine = context.read<ConnectionProvider>().engine;
     if (engine == null) {
       setState(() {
-        _log.add(_LogEntry.error('Adaptorul nu este conectat'));
+        _log.add(_LogEntry.error('Adapter not connected'));
       });
       return;
     }
@@ -58,6 +56,7 @@ class _ObdTerminalScreenState extends State<ObdTerminalScreen> {
     });
     try {
       final res = await engine.sendRaw(cmd.trim());
+      if (!mounted) return;
       setState(() {
         _log.add(_LogEntry.rx(res.raw));
         if (res.isError) {
@@ -65,8 +64,10 @@ class _ObdTerminalScreenState extends State<ObdTerminalScreen> {
         }
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _log.add(_LogEntry.error(e.toString())));
     }
+    if (!mounted) return;
     setState(() => _running = false);
     _ctrl.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -83,190 +84,183 @@ class _ObdTerminalScreenState extends State<ObdTerminalScreen> {
   @override
   Widget build(BuildContext context) {
     final conn = context.watch<ConnectionProvider>();
+    final t = context.tokens;
     final ready = conn.isReady;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('OBD TERMINAL', style: AppText.title(size: 16)),
+    return VScaffold(
+      appBar: VAppBar(
+        title: 'OBD Terminal',
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Curata log',
+            tooltip: 'Clear log',
             onPressed: _log.isEmpty ? null : _clear,
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Status row
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: ready ? AppColors.ok : AppColors.danger,
-                      shape: BoxShape.circle,
-                      boxShadow: ready
-                          ? [
-                              const BoxShadow(
-                                  color: AppColors.ok, blurRadius: 6)
-                            ]
-                          : null,
-                    ),
-                  ),
-                  const Gap(8),
-                  Text(
-                    ready ? 'CONECTAT' : 'NECONECTAT',
-                    style: AppText.label(
-                        size: 10,
-                        color: ready ? AppColors.ok : AppColors.danger,
-                        weight: FontWeight.w900),
-                  ),
-                  const Spacer(),
-                  Text('${_log.length} linii',
-                      style: AppText.label(
-                          size: 9, color: AppColors.textMuted)),
-                ],
-              ),
-            ),
-            // Log
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLo,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+      body: Column(
+        children: [
+          // ─── Status
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: VSpace.s12),
+            child: Row(
+              children: [
+                StatusBadge(
+                  label: ready ? 'Connected' : 'Offline',
+                  status: ready ? VStatus.ok : VStatus.danger,
+                  icon: ready
+                      ? Icons.cable_rounded
+                      : Icons.power_off_rounded,
+                  dense: true,
                 ),
-                child: _log.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Trimite o comanda OBD/AT.\nExemple: ATZ, 010C, 03, 0902',
-                          textAlign: TextAlign.center,
-                          style: AppText.body(
-                              size: 12, color: AppColors.textDim),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scroll,
-                        itemCount: _log.length,
-                        itemBuilder: (_, i) {
-                          final e = _log[i];
-                          final color = switch (e.kind) {
-                            _Kind.tx => AppColors.cyan,
-                            _Kind.rx => AppColors.ok,
-                            _Kind.error => AppColors.danger,
-                          };
-                          final prefix = switch (e.kind) {
-                            _Kind.tx => '>>',
-                            _Kind.rx => '<<',
-                            _Kind.error => '!!',
-                          };
-                          return Padding(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 1.5),
-                            child: SelectableText(
-                              '$prefix ${e.text}',
-                              style: AppText.digital(
-                                  size: 12,
-                                  color: color,
-                                  weight: FontWeight.w600),
-                            ),
-                          );
-                        },
-                      ),
-              ),
+                const Spacer(),
+                Text('${_log.length} lines',
+                    style: VType.body13.copyWith(color: t.textDisabled)),
+              ],
             ),
-            const Gap(8),
-            // Quick commands
-            SizedBox(
-              height: 38,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _quickCommands.length,
-                separatorBuilder: (_, __) => const Gap(6),
-                itemBuilder: (_, i) {
-                  final q = _quickCommands[i];
-                  return InkWell(
-                    onTap: () => _send(q.cmd),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceHi,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.cyan.withOpacity(0.3)),
+          ),
+
+          // ─── Log
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(VSpace.s12),
+              decoration: BoxDecoration(
+                color: t.surface,
+                borderRadius: VRadius.brMd,
+              ),
+              child: _log.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Send a command (ATZ, 010C, 03, 0902…)',
+                        textAlign: TextAlign.center,
+                        style: VType.body13.copyWith(color: t.textDisabled),
                       ),
-                      child: Row(
-                        children: [
-                          Text(q.cmd,
-                              style: AppText.digital(
-                                  size: 11,
-                                  color: AppColors.cyan,
-                                  weight: FontWeight.w800)),
-                          const Gap(6),
-                          Text(q.label,
-                              style: AppText.label(
-                                  size: 8.5,
-                                  color: AppColors.textMuted)),
-                        ],
-                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scroll,
+                      itemCount: _log.length,
+                      itemBuilder: (_, i) {
+                        final e = _log[i];
+                        final color = switch (e.kind) {
+                          _Kind.tx => t.accent,
+                          _Kind.rx => t.ok,
+                          _Kind.error => t.danger,
+                        };
+                        final prefix = switch (e.kind) {
+                          _Kind.tx => '>',
+                          _Kind.rx => '<',
+                          _Kind.error => '!',
+                        };
+                        return Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 2),
+                          child: SelectableText(
+                            '$prefix  ${e.text}',
+                            style: VType.mono13.copyWith(color: color),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
-            const Gap(10),
-            // Input
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      enabled: ready && !_running,
-                      style: AppText.digital(size: 14, color: AppColors.cyan),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                            RegExp(r'[a-zA-Z0-9 ]'))
-                      ],
-                      decoration: const InputDecoration(
-                        hintText: 'Comanda (ex: 010C, ATZ, 03, 0902)',
-                        isDense: true,
-                      ),
-                      onSubmitted: _send,
-                      textInputAction: TextInputAction.send,
+          ),
+
+          const SizedBox(height: VSpace.s12),
+
+          // ─── Quick commands
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: _quickCommands.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: VSpace.s8),
+              itemBuilder: (_, i) {
+                final q = _quickCommands[i];
+                return _QuickChip(cmd: q.cmd, label: q.label, onTap: () => _send(q.cmd));
+              },
+            ),
+          ),
+
+          const SizedBox(height: VSpace.s12),
+
+          // ─── Input
+          Padding(
+            padding: const EdgeInsets.only(bottom: VSpace.s16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    enabled: ready && !_running,
+                    style: VType.mono15.copyWith(color: t.textStrong),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z0-9 ]'))
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: 'Command (010C, ATZ, 03, 0902…)',
+                      isDense: true,
                     ),
+                    onSubmitted: _send,
+                    textInputAction: TextInputAction.send,
                   ),
-                  const Gap(8),
-                  FilledButton(
-                    onPressed:
-                        ready && !_running ? () => _send(_ctrl.text) : null,
-                    child: _running
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                color: Colors.black, strokeWidth: 2),
-                          )
-                        : Text('SEND',
-                            style: AppText.label(
-                                size: 12,
-                                color: Colors.black,
-                                weight: FontWeight.w900)),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: VSpace.s12),
+                FilledButton(
+                  onPressed:
+                      ready && !_running ? () => _send(_ctrl.text) : null,
+                  child: _running
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: t.onAccent,
+                          ),
+                        )
+                      : const Text('Send'),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickChip extends StatelessWidget {
+  final String cmd;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickChip({required this.cmd, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: VRadius.brSm,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: VRadius.brSm,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: VSpace.s12, vertical: VSpace.s8),
+          decoration: BoxDecoration(
+            color: t.surface,
+            borderRadius: VRadius.brSm,
+            border: Border.all(color: t.hairline),
+          ),
+          child: Row(
+            children: [
+              Text(cmd,
+                  style: VType.mono13.copyWith(color: t.accent)),
+              const SizedBox(width: VSpace.s8),
+              Text(label,
+                  style: VType.body13.copyWith(color: t.textMuted)),
+            ],
+          ),
         ),
       ),
     );

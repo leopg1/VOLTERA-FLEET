@@ -4,9 +4,8 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/connection_state.dart';
+import '../../design/design.dart';
 import '../../providers/connection_provider.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/status_pill.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -37,28 +36,20 @@ class _ConnectScreenState extends State<ConnectScreen> {
     super.dispose();
   }
 
-  void _openAutoPairSheet(BuildContext context) {
+  void _openAutoPairSheet() {
     final conn = context.read<ConnectionProvider>();
     conn.startBluetoothDiscovery();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.85,
         minChildSize: 0.4,
         maxChildSize: 0.95,
         expand: false,
-        builder: (_, scrollController) => Material(
-          color: AppColors.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: _AutoPairSheet(scrollController: scrollController),
-        ),
+        builder: (_, scrollController) =>
+            _AutoPairSheet(scrollController: scrollController),
       ),
     ).whenComplete(() => conn.stopBluetoothDiscovery());
   }
@@ -69,66 +60,73 @@ class _ConnectScreenState extends State<ConnectScreen> {
           host: _hostCtrl.text.trim(),
           port: port,
         );
-    if (mounted) {
-      await context.read<ConnectionProvider>().startScan();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Setari WiFi salvate')),
-      );
-    }
+    if (!mounted) return;
+    await context.read<ConnectionProvider>().startScan();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('WiFi settings saved')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final conn = context.watch<ConnectionProvider>();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Adaptor OBD'),
+    final t = context.tokens;
+
+    final (label, status, pulse) = _statusMap(conn.state);
+
+    return VScaffold(
+      appBar: VAppBar(
+        title: 'Connect Vehicle',
         actions: [
           IconButton(
+            tooltip: 'Rescan',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: conn.isScanning ? null : () => conn.startScan(),
           ),
-          const SizedBox(width: 4),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Row(
-              children: [
-                StatusPill(state: conn.state, adapter: conn.activeAdapter),
-                const Spacer(),
-                if (conn.isScanning)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-            if (conn.lastError != null) ...[
-              const SizedBox(height: 12),
-              _ErrorBanner(message: conn.lastError!),
-            ],
-            const SizedBox(height: 18),
-
-            // ----- WiFi settings -----
-            _SectionHeader(
-              icon: Icons.wifi_rounded,
-              title: 'Adaptor WiFi (ESP32 / ELM327 wireless)',
-              subtitle:
-                  'Conecteaza tableta la WiFi-ul adaptorului, apoi introdu '
-                  'adresa lui IP si portul.',
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.stroke),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s40),
+        children: [
+          // Status row
+          Row(
+            children: [
+              Expanded(
+                child: ConnectionPill(
+                  label: label,
+                  meta: conn.activeAdapter?.name,
+                  status: status,
+                  pulse: pulse,
+                ),
               ),
+              if (conn.isScanning) ...[
+                const SizedBox(width: VSpace.s12),
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (conn.lastError != null) ...[
+            const SizedBox(height: VSpace.s12),
+            _ErrorBanner(message: conn.lastError!),
+          ],
+
+          const SizedBox(height: VSpace.s24),
+
+          // ----- WiFi -----
+          VSection(
+            title: 'WiFi Adapter',
+            subtitle:
+                'Connect the tablet to the ESP32/ELM327 WiFi network, then '
+                'enter its address.',
+            child: VCard(
               child: Column(
                 children: [
                   Row(
@@ -140,13 +138,13 @@ class _ConnectScreenState extends State<ConnectScreen> {
                           controller: _hostCtrl,
                           keyboardType: TextInputType.url,
                           decoration: const InputDecoration(
-                            labelText: 'IP adresa',
+                            labelText: 'IP address',
                             hintText: '192.168.0.10',
                             prefixIcon: Icon(Icons.lan_rounded),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: VSpace.s12),
                       Expanded(
                         flex: 1,
                         child: TextField(
@@ -163,17 +161,17 @@ class _ConnectScreenState extends State<ConnectScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: VSpace.s12),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _saveWifiSettings,
                           icon: const Icon(Icons.save_rounded),
-                          label: const Text('Salveaza'),
+                          label: const Text('Save'),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: VSpace.s12),
                       Expanded(
                         child: _PresetMenu(
                           onSelected: (host, port) {
@@ -187,32 +185,27 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 ],
               ),
             ),
+          ),
 
-            const SizedBox(height: 22),
-            _SectionHeader(
-              icon: Icons.bluetooth_rounded,
-              title: 'Adaptor Bluetooth (ELM327 clasic)',
-              subtitle: 'Auto-pair incearca toate PIN-urile uzuale, nu mai '
-                  'trebuie sa-l asociezi manual din setarile Android.',
-            ),
-            const SizedBox(height: 10),
-            Row(
+          const SizedBox(height: VSpace.sectionGap),
+
+          // ----- Bluetooth -----
+          VSection(
+            title: 'Bluetooth Adapter',
+            subtitle: 'Auto-pair tries all common PINs; no need to pair '
+                'manually in Android settings.',
+            child: Row(
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => _openAutoPairSheet(context),
+                    onPressed: _openAutoPairSheet,
                     icon: const Icon(Icons.auto_fix_high_rounded),
-                    label: const Text('Auto-pair adaptor'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.cyan,
-                      foregroundColor: AppColors.bg,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                    label: const Text('Auto-pair'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: VSpace.s12),
                 IconButton.outlined(
-                  tooltip: 'Setari Bluetooth Android',
+                  tooltip: 'Android BT settings',
                   onPressed: () async {
                     try {
                       await FlutterBluetoothSerial.instance.openSettings();
@@ -222,38 +215,75 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 22),
-            _SectionHeader(
-              icon: Icons.usb_rounded,
-              title: 'Adaptori detectati',
-              subtitle: 'WiFi, Bluetooth Classic asociat sau Demo. '
-                  'Selecteaza unul ca sa pornesti conectarea.',
+          const SizedBox(height: VSpace.sectionGap),
+
+          // ----- Adapter list -----
+          VSection(
+            title: 'Detected adapters',
+            subtitle: 'WiFi, paired Bluetooth or Demo. Tap to connect.',
+            child: Column(
+              children: [
+                if (conn.scanResults.isEmpty)
+                  EmptyState(
+                    icon: Icons.sensors_off_rounded,
+                    title: 'No adapters found',
+                    body: conn.isScanning
+                        ? 'Scanning... give it a few seconds.'
+                        : 'Pull to refresh or check the adapter is powered.',
+                  )
+                else
+                  ...conn.scanResults.map(
+                    (a) => Padding(
+                      padding: const EdgeInsets.only(bottom: VSpace.s8),
+                      child: _AdapterTile(
+                        adapter: a,
+                        isActive: conn.activeAdapter?.id == a.id,
+                        onTap: () => conn.connect(a),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 10),
-            ...conn.scanResults.map(
-              (a) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: _AdapterTile(
-                  adapter: a,
-                  isActive: conn.activeAdapter?.id == a.id,
-                  onTap: () => conn.connect(a),
-                ),
-              ),
+          ),
+
+          if (conn.activeAdapter != null && conn.isReady) ...[
+            const SizedBox(height: VSpace.sectionGap),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('Continue to Dashboard'),
             ),
-            const SizedBox(height: 30),
-            if (conn.activeAdapter != null && conn.isReady)
-              FilledButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.dashboard_rounded),
-                label: const Text('Continua catre Dashboard'),
-              ),
           ],
-        ),
+        ],
       ),
     );
   }
+
+  (String, VStatus, bool) _statusMap(ObdLinkState s) {
+    switch (s) {
+      case ObdLinkState.disconnected:
+        return ('Offline', VStatus.neutral, false);
+      case ObdLinkState.scanning:
+        return ('Scanning', VStatus.warn, true);
+      case ObdLinkState.connecting:
+        return ('Linking', VStatus.warn, true);
+      case ObdLinkState.initializing:
+        return ('Initializing', VStatus.warn, true);
+      case ObdLinkState.ready:
+        return ('Live', VStatus.ok, true);
+      case ObdLinkState.busy:
+        return ('Busy', VStatus.info, false);
+      case ObdLinkState.error:
+        return ('Error', VStatus.danger, false);
+    }
+  }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers — preset menu, error banner, adapter tile
+// ─────────────────────────────────────────────────────────────────────
 
 class _PresetMenu extends StatelessWidget {
   final void Function(String host, int port) onSelected;
@@ -261,90 +291,45 @@ class _PresetMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     return PopupMenuButton<({String host, int port})>(
-      tooltip: 'Presetari WiFi populare',
+      tooltip: 'Common WiFi presets',
       itemBuilder: (_) => const [
         PopupMenuItem(
           value: (host: '192.168.0.10', port: 35000),
-          child: Text('Clone V-Link (192.168.0.10:35000)'),
+          child: Text('Clone V-Link  ·  192.168.0.10:35000'),
         ),
         PopupMenuItem(
           value: (host: '192.168.4.1', port: 35000),
-          child: Text('ESP32 default AP (192.168.4.1:35000)'),
+          child: Text('ESP32 default  ·  192.168.4.1:35000'),
         ),
         PopupMenuItem(
           value: (host: '192.168.4.1', port: 23),
-          child: Text('ESP32 Telnet (192.168.4.1:23)'),
+          child: Text('ESP32 Telnet  ·  192.168.4.1:23'),
         ),
         PopupMenuItem(
           value: (host: '192.168.0.1', port: 35000),
-          child: Text('Generic gateway (192.168.0.1:35000)'),
+          child: Text('Generic gw  ·  192.168.0.1:35000'),
         ),
       ],
       onSelected: (v) => onSelected(v.host, v.port),
       child: Container(
         height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: VSpace.s16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.stroke),
+          borderRadius: VRadius.brSm,
+          border: Border.all(color: t.hairlineStrong),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.tune_rounded, size: 18, color: AppColors.textMuted),
-            SizedBox(width: 8),
-            Text('Presetari'),
+          children: [
+            Icon(Icons.tune_rounded, size: 18, color: t.textMuted),
+            const SizedBox(width: VSpace.s8),
+            Text('Presets',
+                style: VType.body15.copyWith(color: t.textStrong)),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.accent, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 12.5, height: 1.35),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -355,22 +340,21 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(VSpace.s16),
       decoration: BoxDecoration(
-        color: AppColors.danger.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+        color: t.danger.withValues(alpha: 0.08),
+        borderRadius: VRadius.brMd,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-          const SizedBox(width: 10),
+          Icon(Icons.error_outline_rounded, color: t.danger, size: 18),
+          const SizedBox(width: VSpace.s12),
           Expanded(
             child: Text(message,
-                style: const TextStyle(
-                    color: AppColors.danger, fontSize: 13, height: 1.4)),
+                style: VType.body13.copyWith(color: t.danger)),
           ),
         ],
       ),
@@ -405,42 +389,45 @@ class _AdapterTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     return Material(
       color: Colors.transparent,
+      borderRadius: VRadius.brMd,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: VRadius.brMd,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(VSpace.s16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            color: t.surface,
+            borderRadius: VRadius.brMd,
             border: Border.all(
-              color: isActive ? AppColors.accent : AppColors.stroke,
-              width: isActive ? 1.4 : 1,
+              color: isActive ? t.accent : Colors.transparent,
+              width: 1.5,
             ),
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: t.surfaceRaised,
+                  borderRadius: VRadius.brSm,
                 ),
-                child: Icon(_icon, color: AppColors.accent),
+                alignment: Alignment.center,
+                child: Icon(_icon, size: 20, color: t.textDefault),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: VSpace.s12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       adapter.name,
-                      style: const TextStyle(
+                      style: VType.body15.copyWith(
+                        color: t.textStrong,
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -451,16 +438,20 @@ class _AdapterTile extends StatelessWidget {
                         adapter.transportLabel,
                         if (adapter.address != null) adapter.address!,
                       ].join('  ·  '),
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: VType.body13.copyWith(color: t.textMuted),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textMuted),
+              if (isActive)
+                const StatusBadge(
+                  label: 'Active',
+                  status: VStatus.ok,
+                  icon: Icons.check_rounded,
+                  dense: true,
+                )
+              else
+                Icon(Icons.chevron_right_rounded, color: t.textDisabled),
             ],
           ),
         ),
@@ -469,7 +460,10 @@ class _AdapterTile extends StatelessWidget {
   }
 }
 
-/// Bottom sheet care porneste discovery + auto-pair pe adaptorul ales.
+// ─────────────────────────────────────────────────────────────────────
+// Auto-pair bottom sheet
+// ─────────────────────────────────────────────────────────────────────
+
 class _AutoPairSheet extends StatefulWidget {
   final ScrollController scrollController;
   const _AutoPairSheet({required this.scrollController});
@@ -496,25 +490,32 @@ class _AutoPairSheetState extends State<_AutoPairSheet> {
     });
     final conn = context.read<ConnectionProvider>();
     final pin = _pinCtrl.text.trim();
-    final ok = await conn.autoPairDevice(address, customPin: pin.isEmpty ? null : pin);
+    final ok = await conn.autoPairDevice(
+      address,
+      customPin: pin.isEmpty ? null : pin,
+    );
     if (!mounted) return;
     setState(() {
       _pairing = false;
       _pairingDeviceAddress = null;
     });
-    if (ok) {
+    if (ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.ok,
-          content: Text('Adaptor asociat. Inchide acest panou pentru a continua.'),
+        SnackBar(
+          backgroundColor: context.tokens.ok,
+          content: const Text(
+            'Adapter paired. Close this panel to continue.',
+          ),
         ),
       );
     }
   }
 
-  /// Conectare directa fara pairing — exact ca Torque Pro / RealDash.
   Future<void> _connectDirect(
-      BuildContext context, String address, String name) async {
+    BuildContext context,
+    String address,
+    String name,
+  ) async {
     setState(() {
       _pairing = true;
       _pairingDeviceAddress = address;
@@ -527,20 +528,23 @@ class _AutoPairSheetState extends State<_AutoPairSheet> {
       _pairing = false;
       _pairingDeviceAddress = null;
     });
+    if (!context.mounted) return;
     if (ok) {
       Navigator.of(context).maybePop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.ok,
-          content: Text('Conectat direct (fara PIN). Adaptorul e live.'),
+        SnackBar(
+          backgroundColor: context.tokens.ok,
+          content: const Text('Connected direct (no PIN). Adapter is live.'),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.danger,
-          content: Text(conn.lastError ?? 'Conectare directa esuata. '
-              'Incearca PAIR (fallback cu PIN).'),
+          backgroundColor: context.tokens.danger,
+          content: Text(
+            conn.lastError ??
+                'Direct connect failed. Try PAIR (PIN fallback).',
+          ),
         ),
       );
     }
@@ -549,9 +553,9 @@ class _AutoPairSheetState extends State<_AutoPairSheet> {
   @override
   Widget build(BuildContext context) {
     final conn = context.watch<ConnectionProvider>();
+    final t = context.tokens;
     final results = List.of(conn.discoveryResults)
       ..sort((a, b) {
-        // ELM-like primii
         final an = (a.device.name ?? '').toUpperCase();
         final bn = (b.device.name ?? '').toUpperCase();
         final ao = an.contains('OBD') || an.contains('ELM');
@@ -561,215 +565,213 @@ class _AutoPairSheetState extends State<_AutoPairSheet> {
         return (b.rssi).compareTo(a.rssi);
       });
 
-    return Container(
-      color: AppColors.surface,
-      child: ListView(
-        controller: widget.scrollController,
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.textDim,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                const Icon(Icons.auto_fix_high_rounded, color: AppColors.cyan),
-                const SizedBox(width: 8),
-                const Text('Auto-pair adaptor Bluetooth',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-                const Spacer(),
-                if (conn.isDiscovering)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded),
-                    onPressed: () => conn.startBluetoothDiscovery(),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'CONNECT = direct, fara PIN (ca Torque Pro / RealDash — insecure SPP). '
-              'PAIR = fallback cu PIN-uri uzuale daca CONNECT esueaza.',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
-            ),
-            const SizedBox(height: 14),
-
-            // PIN custom optional
-            TextField(
-              controller: _pinCtrl,
-              keyboardType: TextInputType.number,
-              maxLength: 8,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'PIN custom (optional)',
-                hintText: 'lasa gol pentru auto-try',
-                prefixIcon: Icon(Icons.pin_rounded),
-                counterText: '',
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Status
-            if (conn.autoPairStatus != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.cyan.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.cyan.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    if (_pairing)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      const Icon(Icons.info_outline_rounded,
-                          color: AppColors.cyan, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(conn.autoPairStatus!,
-                          style: const TextStyle(fontSize: 12.5)),
-                    ),
-                  ],
-                ),
-              ),
-
-            const Text('DEVICE-URI APROAPE',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.4,
-                    color: AppColors.textMuted)),
-            const SizedBox(height: 6),
-            if (results.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    conn.isDiscovering
-                        ? 'Scanez... (asteapta 5-15s)'
-                        : 'Niciun device. Apasa refresh.',
-                    style: const TextStyle(color: AppColors.textMuted),
-                  ),
-                ),
+    return ListView(
+      controller: widget.scrollController,
+      padding: EdgeInsets.fromLTRB(
+        VSpace.s16,
+        VSpace.s8,
+        VSpace.s16,
+        MediaQuery.of(context).viewInsets.bottom + VSpace.s24,
+      ),
+      children: [
+        Row(
+          children: [
+            Icon(Icons.auto_fix_high_rounded, color: t.accent, size: 20),
+            const SizedBox(width: VSpace.s8),
+            const Text('Auto-pair Bluetooth', style: VType.title18),
+            const Spacer(),
+            if (conn.isDiscovering)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: t.accent),
               )
             else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: results.length,
-                itemBuilder: (_, i) {
-                        final r = results[i];
-                        final name = r.device.name ?? r.device.address;
-                        final addr = r.device.address;
-                        final isOurTarget = _pairingDeviceAddress == addr;
-                        final isObdLike = name.toUpperCase().contains('OBD') ||
-                            name.toUpperCase().contains('ELM');
-                        return Card(
-                          color: AppColors.surfaceHi,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: isObdLike
-                                  ? AppColors.cyan.withValues(alpha: 0.4)
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.bluetooth_rounded,
-                              color:
-                                  isObdLike ? AppColors.cyan : AppColors.textMuted,
-                            ),
-                            title: Text(
-                              isObdLike ? '$name  ⛽' : name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              '$addr · RSSI ${r.rssi} dBm'
-                              '${r.device.isBonded ? "  ·  ASOCIAT" : ""}',
-                              style: const TextStyle(
-                                  fontSize: 11.5, color: AppColors.textMuted),
-                            ),
-                            trailing: isOurTarget && _pairing
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child:
-                                        CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Conectare DIRECTA (fara PIN) — ca Torque Pro
-                                      FilledButton(
-                                        onPressed: _pairing
-                                            ? null
-                                            : () => _connectDirect(
-                                                context, addr, name),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: AppColors.ok,
-                                          foregroundColor: AppColors.bg,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                        ),
-                                        child: const Text('CONNECT'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      // Fallback: pair cu PIN daca CONNECT esueaza
-                                      OutlinedButton(
-                                        onPressed: _pairing
-                                            ? null
-                                            : () => _autoPair(context, addr),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: AppColors.cyan,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 8),
-                                        ),
-                                        child: const Text('PAIR'),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        );
-                      },
-                    ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: () => Navigator.of(context).maybePop(),
-              icon: const Icon(Icons.close_rounded),
-              label: const Text('Inchide'),
-            ),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: () => conn.startBluetoothDiscovery(),
+              ),
           ],
         ),
+        const SizedBox(height: VSpace.s4),
+        Text(
+          'CONNECT = direct, no PIN (Torque Pro / RealDash style, insecure SPP). '
+          'PAIR = fallback with common PINs if CONNECT fails.',
+          style: VType.body13.copyWith(color: t.textMuted),
+        ),
+        const SizedBox(height: VSpace.s16),
+
+        TextField(
+          controller: _pinCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 8,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            labelText: 'Custom PIN (optional)',
+            hintText: 'leave empty for auto-try',
+            prefixIcon: Icon(Icons.pin_rounded),
+            counterText: '',
+          ),
+        ),
+        const SizedBox(height: VSpace.s12),
+
+        if (conn.autoPairStatus != null)
+          Container(
+            padding: const EdgeInsets.all(VSpace.s12),
+            margin: const EdgeInsets.only(bottom: VSpace.s12),
+            decoration: BoxDecoration(
+              color: t.accent.withValues(alpha: 0.08),
+              borderRadius: VRadius.brSm,
+            ),
+            child: Row(
+              children: [
+                if (_pairing)
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: t.accent,
+                    ),
+                  )
+                else
+                  Icon(Icons.info_outline_rounded, color: t.accent, size: 18),
+                const SizedBox(width: VSpace.s12),
+                Expanded(
+                  child: Text(
+                    conn.autoPairStatus!,
+                    style: VType.body13.copyWith(color: t.textDefault),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        Text('NEARBY DEVICES',
+            style: VType.label11.copyWith(color: t.textMuted)),
+        const SizedBox(height: VSpace.s8),
+
+        if (results.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: VSpace.s24),
+            child: Center(
+              child: Text(
+                conn.isDiscovering
+                    ? 'Scanning... (5-15s)'
+                    : 'No devices. Tap refresh.',
+                style: VType.body13.copyWith(color: t.textMuted),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: results.length,
+            itemBuilder: (_, i) {
+              final r = results[i];
+              final name = r.device.name ?? r.device.address;
+              final addr = r.device.address;
+              final isOurTarget = _pairingDeviceAddress == addr;
+              final isObdLike = name.toUpperCase().contains('OBD') ||
+                  name.toUpperCase().contains('ELM');
+              return Padding(
+                padding: const EdgeInsets.only(bottom: VSpace.s8),
+                child: Container(
+                  padding: const EdgeInsets.all(VSpace.s12),
+                  decoration: BoxDecoration(
+                    color: t.surface,
+                    borderRadius: VRadius.brSm,
+                    border: Border.all(
+                      color: isObdLike ? t.accent : t.hairline,
+                      width: isObdLike ? 1 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.bluetooth_rounded,
+                        size: 20,
+                        color: isObdLike ? t.accent : t.textMuted,
+                      ),
+                      const SizedBox(width: VSpace.s12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: VType.body15.copyWith(
+                                color: t.textStrong,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$addr  ·  ${r.rssi} dBm'
+                              '${r.device.isBonded ? "  ·  paired" : ""}',
+                              style: VType.body13.copyWith(color: t.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isOurTarget && _pairing)
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: t.accent,
+                          ),
+                        )
+                      else
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FilledButton(
+                              onPressed: _pairing
+                                  ? null
+                                  : () => _connectDirect(context, addr, name),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: t.accent,
+                                foregroundColor: t.onAccent,
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                              ),
+                              child: const Text('Connect'),
+                            ),
+                            const SizedBox(width: VSpace.s8),
+                            OutlinedButton(
+                              onPressed: _pairing
+                                  ? null
+                                  : () => _autoPair(context, addr),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                              ),
+                              child: const Text('Pair'),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+        const SizedBox(height: VSpace.s8),
+        TextButton.icon(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.close_rounded),
+          label: const Text('Close'),
+        ),
+      ],
     );
   }
 }

@@ -1,18 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
+import '../design/design.dart';
 import '../providers/live_data_provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/neon_card.dart';
-import '../widgets/racing_button.dart';
 
-/// Performance test suite — captures classic acceleration / braking
-/// benchmarks live during a session: 0-60mph, 0-100km/h, quarter-mile time
-/// & terminal speed, 60-0 braking distance and personal-best logging.
+/// Performance — acceleratie & franare disciplinat.
 class PerformanceScreen extends StatefulWidget {
   const PerformanceScreen({super.key});
 
@@ -25,22 +19,18 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
   bool _running = false;
   DateTime? _startedAt;
 
-  // Acceleration metrics
   Duration? _t0to60mph;
   Duration? _t0to100kmh;
   Duration? _t0to200kmh;
   Duration? _quarterMileTime;
   double? _quarterMileTrap;
 
-  // Braking metrics
   bool _braking = false;
-  DateTime? _brakeStart;
   double _brakeStartSpeed = 0;
   double _brakeDistanceM = 0;
   double? _last60to0;
   double? _last100to0;
 
-  // Tracking
   double _speed = 0;
   double _lastSpeed = 0;
   double _maxSpeed = 0;
@@ -60,7 +50,6 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
       _maxSpeed = 0;
       _distanceM = 0;
       _braking = false;
-      _brakeStart = null;
       _brakeDistanceM = 0;
     });
     _ticker = Timer.periodic(const Duration(milliseconds: 50), (_) => _tick());
@@ -85,8 +74,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     _distanceM += dx;
     if (newSpeed > _maxSpeed) _maxSpeed = newSpeed;
 
-    // Acceleration milestones
-    final ms60 = 60 * 1.609344;
+    const ms60 = 60 * 1.609344;
     if (newSpeed >= ms60 && _t0to60mph == null && _startedAt != null) {
       _t0to60mph = now.difference(_startedAt!);
     }
@@ -96,25 +84,22 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     if (newSpeed >= 200 && _t0to200kmh == null && _startedAt != null) {
       _t0to200kmh = now.difference(_startedAt!);
     }
-
-    // Quarter mile = 402.336m
-    if (_quarterMileTime == null && _distanceM >= 402.336 && _startedAt != null) {
+    if (_quarterMileTime == null &&
+        _distanceM >= 402.336 &&
+        _startedAt != null) {
       _quarterMileTime = now.difference(_startedAt!);
       _quarterMileTrap = newSpeed;
     }
 
-    // Brake start detection — was decelerating now hard
     final isDeceleration = newSpeed < _lastSpeed - 0.5;
     if (!_braking && isDeceleration && _lastSpeed >= 60) {
       _braking = true;
-      _brakeStart = now;
       _brakeStartSpeed = _lastSpeed;
       _brakeDistanceM = 0;
     }
     if (_braking) {
       _brakeDistanceM += dx;
       if (newSpeed <= 5) {
-        // Brake event ended.
         if (_brakeStartSpeed >= 100) {
           _last100to0 = _brakeDistanceM;
         } else if (_brakeStartSpeed >= 60) {
@@ -138,304 +123,358 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar:
-          AppBar(title: Text('PERFORMANCE', style: AppText.title(size: 16))),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _heroCard(),
-                      const Gap(12),
-                      _accelGrid(),
-                      const Gap(12),
-                      _brakeCard(),
-                    ],
-                  ),
+    final t = context.tokens;
+    return VScaffold(
+      appBar: const VAppBar(title: 'Performance'),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s16),
+              children: [
+                _SpeedHero(
+                  speed: _speed,
+                  maxSpeed: _maxSpeed,
+                  distanceM: _distanceM,
+                  running: _running,
+                  startedAt: _startedAt,
                 ),
-              ),
-              const Gap(12),
-              RacingButton(
-                label: _running ? 'STOP TEST' : 'START TEST',
-                icon: _running
-                    ? Icons.stop_rounded
-                    : Icons.play_arrow_rounded,
-                color: _running ? AppColors.danger : AppColors.cyan,
-                isOn: _running,
-                onPressed: _running ? _stopTest : _startTest,
-              ),
-            ],
+                const SizedBox(height: VSpace.s12),
+                _AccelGrid(
+                  t100: _t0to100kmh,
+                  t60mph: _t0to60mph,
+                  t200: _t0to200kmh,
+                  qMile: _quarterMileTime,
+                  qTrap: _quarterMileTrap,
+                ),
+                const SizedBox(height: VSpace.s12),
+                _BrakeCard(
+                  braking: _braking,
+                  last60to0: _last60to0,
+                  last100to0: _last100to0,
+                  currentBrakeM: _braking ? _brakeDistanceM : null,
+                ),
+              ],
+            ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: VSpace.s16),
+            child: _running
+                ? FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: t.danger,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.stop_rounded),
+                    label: const Text('Stop test'),
+                    onPressed: _stopTest,
+                  )
+                : FilledButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Start test'),
+                    onPressed: _startTest,
+                  ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _heroCard() {
-    return NeonCard(
-      showGlow: true,
-      glow: AppColors.warn,
-      padding: const EdgeInsets.all(20),
+// ─────────────────────────────────────────────────────────────────────
+// Hero
+// ─────────────────────────────────────────────────────────────────────
+
+class _SpeedHero extends StatelessWidget {
+  final double speed;
+  final double maxSpeed;
+  final double distanceM;
+  final bool running;
+  final DateTime? startedAt;
+  const _SpeedHero({
+    required this.speed,
+    required this.maxSpeed,
+    required this.distanceM,
+    required this.running,
+    required this.startedAt,
+  });
+
+  String _fmtElapsed() {
+    if (!running || startedAt == null) return '—';
+    final secs = DateTime.now().difference(startedAt!).inMilliseconds / 1000.0;
+    return secs.toStringAsFixed(2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return VCard.hero(
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('LIVE', style: AppText.label(size: 10)),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: _running ? AppColors.danger : AppColors.textDim,
-                  shape: BoxShape.circle,
-                  boxShadow: _running
-                      ? [
-                          const BoxShadow(
-                              color: AppColors.danger, blurRadius: 6)
-                        ]
-                      : null,
-                ),
+              Text('LIVE',
+                  style: VType.label11.copyWith(color: t.textMuted)),
+              StatusDot(
+                status: running ? VStatus.danger : VStatus.neutral,
+                pulse: running,
               ),
             ],
           ),
-          const Gap(8),
+          const SizedBox(height: VSpace.s8),
           Text(
-            _speed.toStringAsFixed(0),
-            style: AppText.digital(
-                size: 80, color: AppColors.cyan, weight: FontWeight.w900),
+            speed.toStringAsFixed(0),
+            style: VType.display72.copyWith(color: t.textStrong),
           ),
-          Text('km/h',
-              style:
-                  AppText.label(size: 11, color: AppColors.textMuted)),
-          const Gap(10),
+          Text('km/h', style: VType.body15.copyWith(color: t.textMuted)),
+          const SizedBox(height: VSpace.s16),
+          Divider(color: t.hairline, height: 1),
+          const SizedBox(height: VSpace.s16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _heroStat('MAX', _maxSpeed.toStringAsFixed(0), 'km/h'),
-              _heroStat('DIST', _distanceM.toStringAsFixed(0), 'm'),
-              _heroStat(
-                'TIMP',
-                _running && _startedAt != null
-                    ? _fmtDuration(DateTime.now().difference(_startedAt!))
-                    : '—',
-                's',
+              Expanded(
+                child: MetricBlock(
+                  label: 'Top',
+                  value: maxSpeed.toStringAsFixed(0),
+                  unit: 'km/h',
+                  size: MetricSize.sm,
+                ),
+              ),
+              Container(width: 1, height: 28, color: t.hairline),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: VSpace.s8),
+                  child: MetricBlock(
+                    label: 'Distance',
+                    value: distanceM.toStringAsFixed(0),
+                    unit: 'm',
+                    size: MetricSize.sm,
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 28, color: t.hairline),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: VSpace.s8),
+                  child: MetricBlock(
+                    label: 'Time',
+                    value: _fmtElapsed(),
+                    unit: 's',
+                    size: MetricSize.sm,
+                  ),
+                ),
               ),
             ],
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms);
-  }
-
-  Widget _heroStat(String label, String value, String unit) {
-    return Column(
-      children: [
-        Text(label, style: AppText.label(size: 9)),
-        const Gap(2),
-        RichText(
-          text: TextSpan(children: [
-            TextSpan(
-                text: value,
-                style: AppText.digital(size: 16, color: AppColors.cyan)),
-            TextSpan(
-                text: ' $unit',
-                style: AppText.body(size: 9, color: AppColors.textMuted)),
-          ]),
-        ),
-      ],
     );
   }
+}
 
-  Widget _accelGrid() {
+// ─────────────────────────────────────────────────────────────────────
+// Acceleration result grid
+// ─────────────────────────────────────────────────────────────────────
+
+class _AccelGrid extends StatelessWidget {
+  final Duration? t100;
+  final Duration? t60mph;
+  final Duration? t200;
+  final Duration? qMile;
+  final double? qTrap;
+
+  const _AccelGrid({
+    required this.t100,
+    required this.t60mph,
+    required this.t200,
+    required this.qMile,
+    required this.qTrap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: _resultTile(
-            label: '0-100 km/h',
-            time: _t0to100kmh,
-            color: AppColors.cyan,
+          child: _ResultTile(
+            label: '0–100 km/h',
+            time: t100,
             icon: Icons.flash_on_rounded,
           ),
         ),
-        const Gap(8),
+        const SizedBox(width: VSpace.cardGap),
         Expanded(
-          child: _resultTile(
-            label: '0-60 mph',
-            time: _t0to60mph,
-            color: AppColors.cyan,
+          child: _ResultTile(
+            label: '0–60 mph',
+            time: t60mph,
             icon: Icons.speed_rounded,
           ),
         ),
-        const Gap(8),
+        const SizedBox(width: VSpace.cardGap),
         Expanded(
-          child: _resultTile(
-            label: '0-200',
-            time: _t0to200kmh,
-            color: AppColors.warn,
+          child: _ResultTile(
+            label: '0–200',
+            time: t200,
             icon: Icons.bolt_rounded,
           ),
         ),
-        const Gap(8),
+        const SizedBox(width: VSpace.cardGap),
         Expanded(
-          child: _resultTile(
-            label: '1/4 MI',
-            time: _quarterMileTime,
-            trap: _quarterMileTrap,
-            color: AppColors.warn,
+          child: _ResultTile(
+            label: '¼ mile',
+            time: qMile,
+            trap: qTrap,
             icon: Icons.flag_rounded,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _resultTile({
-    required String label,
-    required Duration? time,
-    required Color color,
-    required IconData icon,
-    double? trap,
-  }) {
+class _ResultTile extends StatelessWidget {
+  final String label;
+  final Duration? time;
+  final IconData icon;
+  final double? trap;
+  const _ResultTile({
+    required this.label,
+    required this.time,
+    required this.icon,
+    this.trap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
     final v = time == null
-        ? '— —'
-        : (time.inMilliseconds / 1000.0).toStringAsFixed(2);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
+        ? '—'
+        : (time!.inMilliseconds / 1000.0).toStringAsFixed(2);
+    final hasValue = time != null;
+    return VCard(
+      padding: const EdgeInsets.all(VSpace.s12),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 16),
-          const Gap(6),
-          Text(label, style: AppText.label(size: 9)),
-          const Gap(4),
-          Text(v,
+          Icon(icon, color: t.textMuted, size: 16),
+          const SizedBox(height: VSpace.s8),
+          Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.digital(
-                  size: 16, color: color, weight: FontWeight.w900)),
-          Text('s', style: AppText.label(size: 8)),
+              style: VType.label11.copyWith(color: t.textMuted)),
+          const SizedBox(height: VSpace.s4),
+          Text(
+            v,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: VType.title24.copyWith(
+              color: hasValue ? t.textStrong : t.textDisabled,
+              fontFamily: VType.mono,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text('s',
+              style: VType.body13.copyWith(color: t.textMuted)),
           if (trap != null) ...[
-            const Gap(4),
-            Text('${trap.toStringAsFixed(0)} km/h',
-                style: AppText.label(
-                    size: 8.5, color: AppColors.textMuted)),
+            const SizedBox(height: VSpace.s4),
+            Text('${trap!.toStringAsFixed(0)} km/h',
+                style: VType.body13.copyWith(color: t.textDisabled)),
           ],
         ],
       ),
     );
   }
+}
 
-  Widget _brakeCard() {
-    return NeonCard(
-      padding: const EdgeInsets.all(14),
+// ─────────────────────────────────────────────────────────────────────
+// Brake card
+// ─────────────────────────────────────────────────────────────────────
+
+class _BrakeCard extends StatelessWidget {
+  final bool braking;
+  final double? last60to0;
+  final double? last100to0;
+  final double? currentBrakeM;
+
+  const _BrakeCard({
+    required this.braking,
+    required this.last60to0,
+    required this.last100to0,
+    required this.currentBrakeM,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return VCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.fast_rewind_rounded,
-                  color: AppColors.danger, size: 18),
-              const Gap(8),
-              Text('BRAKING', style: AppText.label(size: 10)),
+              Icon(Icons.fast_rewind_rounded,
+                  color: t.textDefault, size: 18),
+              const SizedBox(width: VSpace.s8),
+              Text('Braking',
+                  style: VType.title18.copyWith(color: t.textStrong)),
               const Spacer(),
-              if (_braking)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger.withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text('LIVE',
-                      style: AppText.label(
-                          size: 9, color: AppColors.danger)),
+              if (braking)
+                const StatusBadge(
+                  label: 'Live',
+                  status: VStatus.danger,
+                  icon: Icons.fiber_manual_record_rounded,
+                  dense: true,
                 ),
             ],
           ),
-          const Gap(10),
+          const SizedBox(height: VSpace.s16),
           Row(
             children: [
               Expanded(
-                child: _kvBig(
-                  label: '60-0 km/h',
-                  value: _last60to0?.toStringAsFixed(1) ?? '— —',
+                child: MetricBlock(
+                  label: '60–0',
+                  value: last60to0?.toStringAsFixed(1),
                   unit: 'm',
-                  color: AppColors.cyan,
+                  size: MetricSize.md,
                 ),
               ),
+              Container(width: 1, height: 32, color: t.hairline),
               Expanded(
-                child: _kvBig(
-                  label: '100-0 km/h',
-                  value: _last100to0?.toStringAsFixed(1) ?? '— —',
-                  unit: 'm',
-                  color: AppColors.warn,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: VSpace.s8),
+                  child: MetricBlock(
+                    label: '100–0',
+                    value: last100to0?.toStringAsFixed(1),
+                    unit: 'm',
+                    size: MetricSize.md,
+                  ),
                 ),
               ),
+              Container(width: 1, height: 32, color: t.hairline),
               Expanded(
-                child: _kvBig(
-                  label: 'CURRENT',
-                  value: _braking
-                      ? _brakeDistanceM.toStringAsFixed(1)
-                      : '— —',
-                  unit: 'm',
-                  color: AppColors.danger,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: VSpace.s8),
+                  child: MetricBlock(
+                    label: 'Current',
+                    value: currentBrakeM?.toStringAsFixed(1),
+                    unit: 'm',
+                    size: MetricSize.md,
+                    status: currentBrakeM != null
+                        ? VStatus.danger
+                        : VStatus.neutral,
+                  ),
                 ),
               ),
             ],
           ),
-          const Gap(8),
+          const SizedBox(height: VSpace.s12),
           Text(
-            'Initiaza franarea de la viteza minima 60 km/h. '
-            'Distanta este integrata din viteza · 50 ms tick.',
-            style: AppText.body(size: 11, color: AppColors.textMuted),
+            'Initiate braking from at least 60 km/h. '
+            'Distance is integrated from speed every 50 ms.',
+            style: VType.body13.copyWith(color: t.textMuted),
           ),
         ],
       ),
     );
-  }
-
-  Widget _kvBig(
-      {required String label,
-      required String value,
-      required String unit,
-      required Color color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        children: [
-          Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.label(size: 9)),
-          const Gap(2),
-          RichText(
-            text: TextSpan(children: [
-              TextSpan(
-                  text: value,
-                  style: AppText.digital(
-                      size: 17, color: color, weight: FontWeight.w900)),
-              TextSpan(
-                  text: ' $unit',
-                  style:
-                      AppText.body(size: 9, color: AppColors.textMuted)),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDuration(Duration d) {
-    final secs = d.inMilliseconds / 1000.0;
-    return secs.toStringAsFixed(2);
   }
 }

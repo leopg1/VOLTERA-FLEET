@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../design/design.dart';
 
 class NavItem {
   final IconData icon;
@@ -13,8 +13,8 @@ class NavItem {
   });
 }
 
-/// Compact bottom nav. Single accent (cyan): icon + underline gradient
-/// + subtle top border. Inactive items in textMuted, no decorative noise.
+/// Bottom nav disciplinat. Accent doar pe item-ul activ — fara glow shadow,
+/// fara gradient indicator. Hairline divider sus, surface tonal.
 class CustomBottomNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
@@ -29,10 +29,13 @@ class CustomBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+    final t = context.tokens;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(
+          top: BorderSide(color: t.hairline, width: 1),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -42,79 +45,60 @@ class CustomBottomNav extends StatelessWidget {
             children: List.generate(items.length, (i) {
               final selected = i == index;
               final item = items[i];
+              final color = selected ? t.accent : t.textMuted;
               return Expanded(
-                child: InkWell(
-                  onTap: () => onChanged(i),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedContainer(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => onChanged(i),
+                    splashColor: t.accent.withValues(alpha: 0.08),
+                    highlightColor: t.accent.withValues(alpha: 0.04),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: Icon(
+                                selected ? item.iconActive : item.icon,
+                                key: ValueKey('${item.label}-$selected'),
+                                color: color,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(height: VSpace.s4),
+                            Text(
+                              item.label,
+                              style: VType.body13.copyWith(
+                                color: color,
+                                fontSize: 11.5,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Indicator subtle, 2dp, no shadow
+                        Positioned(
+                          top: 0,
+                          child: AnimatedContainer(
                             duration: const Duration(milliseconds: 220),
                             curve: Curves.easeOutCubic,
+                            height: 2,
+                            width: selected ? 24 : 0,
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: selected
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.cyan
-                                            .withOpacity(0.45),
-                                        blurRadius: 12,
-                                      ),
-                                    ]
-                                  : null,
+                              color: t.accent,
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(2),
+                              ),
                             ),
-                            child: Icon(
-                              selected ? item.iconActive : item.icon,
-                              color: selected
-                                  ? AppColors.cyan
-                                  : AppColors.textMuted,
-                              size: 21,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            item.label,
-                            style: AppText.label(
-                              size: 9,
-                              color: selected
-                                  ? AppColors.cyan
-                                  : AppColors.textMuted,
-                              weight: selected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                              letterSpacing: 1.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Positioned(
-                        top: 0,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          height: 2.4,
-                          width: selected ? 28 : 0,
-                          decoration: BoxDecoration(
-                            gradient: AppColors.cyanGradient,
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(2),
-                            ),
-                            boxShadow: selected
-                                ? [
-                                    BoxShadow(
-                                      color:
-                                          AppColors.cyan.withOpacity(0.7),
-                                      blurRadius: 6,
-                                    ),
-                                  ]
-                                : null,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

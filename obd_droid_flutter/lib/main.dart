@@ -11,14 +11,10 @@ import 'providers/live_data_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/vehicle_provider.dart';
-import 'theme/app_theme.dart';
+import 'design/design.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Folosim fonturile Orbitron + Rajdhani din assets/fonts (bundled in app)
-  // direct prin TextStyle(fontFamily: ...) — fara dependinta de retea.
-  // App-ul ruleaza 100% offline pe tableta conectata la WiFi-ul ESP32.
 
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
@@ -26,11 +22,10 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Status & nav bar tonale cu UI-ul (transparent overlay).
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: AppColors.surface,
+    systemNavigationBarColor: VColors.ink900,
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
@@ -89,8 +84,8 @@ class ObdDroidApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Voltera',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark(),
-        darkTheme: AppTheme.dark(),
+        theme: VolteraTheme.dark(),
+        darkTheme: VolteraTheme.dark(),
         themeMode: ThemeMode.dark,
         home: const AppShell(),
       ),

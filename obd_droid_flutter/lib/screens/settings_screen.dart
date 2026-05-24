@@ -1,27 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
+import '../design/design.dart';
 import '../providers/connection_provider.dart';
 import '../providers/live_data_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/vehicle_provider.dart';
-import '../theme/app_theme.dart';
 
-/// Wired application settings screen.
-///
-/// Sections:
-///  - DISPLAY (theme, units, refresh rate, screen on)
-///  - CONNECTION (auto-connect, WiFi host/port, reconnect)
-///  - DRIVING (eco preferences)
-///  - LOGGING (CSV trips, OBD terminal verbose)
-///  - DATA (clear trips, clear vehicle cache)
-///  - COPILOT AI (OpenAI key)
-///  - ABOUT (version, build info)
-///
-/// All toggles persist immediately via SharedPreferences.
+/// Settings — sectiuni grupate cu hairline divider intern.
+/// Toggle-uri Material native (Switch theme). Niciun card colorat heavy.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -57,81 +45,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = context.watch<SettingsProvider>();
     final conn = context.watch<ConnectionProvider>();
     final tp = context.watch<TripProvider>();
+    final t = context.tokens;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('SETARI', style: AppText.title(size: 16)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ),
+    return VScaffold(
+      appBar: const VAppBar(title: 'Settings'),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s40),
         children: [
-          _SectionTitle('AFISARE'),
-          _SwitchTile(
-            icon: Icons.dark_mode_rounded,
-            title: 'Tema intunecata',
-            subtitle: 'Optimizat pentru vizibilitate noaptea',
-            value: s.useDarkTheme,
-            onChanged: s.setDarkTheme,
-          ),
-          _SwitchTile(
-            icon: Icons.brightness_5_rounded,
-            title: 'Pastreaza ecranul aprins',
-            subtitle: 'Cand aplicatia este deschisa',
-            value: s.keepScreenOn,
-            onChanged: s.setKeepScreenOn,
-          ),
-          _SwitchTile(
-            icon: Icons.speed_rounded,
-            title: 'Unitati imperiale',
-            subtitle: 'mph, °F, mpg in loc de km/h, °C, L/100km',
-            value: s.useImperial,
-            onChanged: s.setImperial,
-          ),
-          _SliderTile(
-            icon: Icons.bolt_rounded,
-            title: 'Frecventa actualizare',
-            subtitle: '${s.dashboardRefreshHz} Hz · live data polling',
-            value: s.dashboardRefreshHz.toDouble(),
-            min: 1,
-            max: 20,
-            divisions: 19,
-            onChanged: (v) {
-              s.setRefreshHz(v.round());
-              context.read<LiveDataProvider>().setRefreshHz(v.round());
-            },
-          ),
+          // ─── Display
+          _Group(title: 'Display', children: [
+            _SwitchTile(
+              icon: Icons.dark_mode_rounded,
+              title: 'Dark theme',
+              subtitle: 'Optimized for night visibility',
+              value: s.useDarkTheme,
+              onChanged: s.setDarkTheme,
+            ),
+            _SwitchTile(
+              icon: Icons.brightness_5_rounded,
+              title: 'Keep screen on',
+              subtitle: 'While the app is open',
+              value: s.keepScreenOn,
+              onChanged: s.setKeepScreenOn,
+            ),
+            _SwitchTile(
+              icon: Icons.speed_rounded,
+              title: 'Imperial units',
+              subtitle: 'mph, °F, mpg instead of km/h, °C, L/100',
+              value: s.useImperial,
+              onChanged: s.setImperial,
+            ),
+            _SliderTile(
+              icon: Icons.bolt_rounded,
+              title: 'Refresh rate',
+              subtitle: '${s.dashboardRefreshHz} Hz · live data polling',
+              value: s.dashboardRefreshHz.toDouble(),
+              min: 1,
+              max: 20,
+              divisions: 19,
+              onChanged: (v) {
+                s.setRefreshHz(v.round());
+                context.read<LiveDataProvider>().setRefreshHz(v.round());
+              },
+              divider: false,
+            ),
+          ]),
 
-          const Gap(16),
-          _SectionTitle('CONEXIUNE'),
-          _SwitchTile(
-            icon: Icons.cable_rounded,
-            title: 'Conectare automata',
-            subtitle: 'Reia ultimul adaptor la deschidere',
-            value: s.autoConnect,
-            onChanged: s.setAutoConnect,
-          ),
-          _Card(
+          const SizedBox(height: VSpace.s16),
+
+          // ─── Connection
+          _Group(title: 'Connection', children: [
+            _SwitchTile(
+              icon: Icons.cable_rounded,
+              title: 'Auto-connect',
+              subtitle: 'Resume last adapter on app open',
+              value: s.autoConnect,
+              onChanged: s.setAutoConnect,
+              divider: false,
+            ),
+          ]),
+
+          const SizedBox(height: VSpace.s12),
+
+          VCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _CardHeader(
-                  icon: Icons.wifi_rounded,
-                  title: 'WiFi adaptor (ELM327 / ESP32)',
-                  subtitle: 'IP-ul si portul TCP al adaptorului',
+                Row(
+                  children: [
+                    Icon(Icons.wifi_rounded, size: 18, color: t.textDefault),
+                    const SizedBox(width: VSpace.s8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('WiFi adapter',
+                              style: VType.body15.copyWith(
+                                  color: t.textStrong,
+                                  fontWeight: FontWeight.w600)),
+                          Text('TCP host + port',
+                              style: VType.body13
+                                  .copyWith(color: t.textMuted)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const Gap(12),
+                const SizedBox(height: VSpace.s16),
                 Row(
                   children: [
                     Expanded(
                       flex: 3,
                       child: TextField(
                         controller: _hostCtrl,
-                        keyboardType: TextInputType.number,
-                        style: AppText.body(size: 14),
+                        keyboardType: TextInputType.url,
                         decoration: const InputDecoration(
                           labelText: 'Host',
                           hintText: '192.168.0.10',
@@ -139,13 +146,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
-                    const Gap(8),
+                    const SizedBox(width: VSpace.s12),
                     Expanded(
                       flex: 1,
                       child: TextField(
                         controller: _portCtrl,
                         keyboardType: TextInputType.number,
-                        style: AppText.body(size: 14),
                         decoration: const InputDecoration(
                           labelText: 'Port',
                           hintText: '35000',
@@ -155,39 +161,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
-                const Gap(12),
+                const SizedBox(height: VSpace.s12),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final port = int.tryParse(_portCtrl.text.trim()) ??
-                              35000;
+                          final port =
+                              int.tryParse(_portCtrl.text.trim()) ?? 35000;
                           await conn.updateWifiSettings(
                             host: _hostCtrl.text.trim(),
                             port: port,
                           );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: AppColors.ok,
-                                content: Text(
-                                  'Setari WiFi salvate · $port',
-                                  style: AppText.body(color: Colors.black),
-                                ),
-                              ),
-                            );
-                          }
+                          if (!mounted || !context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: t.ok,
+                              content: Text('WiFi settings saved · :$port'),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.save_rounded, size: 16),
-                        label: Text('SALVEAZA',
-                            style: AppText.label(
-                                size: 11,
-                                color: AppColors.cyan,
-                                weight: FontWeight.w800)),
+                        label: const Text('Save'),
                       ),
                     ),
-                    const Gap(8),
+                    const SizedBox(width: VSpace.s12),
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: conn.activeAdapter == null
@@ -197,12 +195,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             size: 16),
                         label: Text(
                           conn.activeAdapter != null
-                              ? 'DECONECTARE'
-                              : 'NECONECTAT',
-                          style: AppText.label(
-                              size: 11,
-                              color: Colors.black,
-                              weight: FontWeight.w800),
+                              ? 'Disconnect'
+                              : 'Not connected',
                         ),
                       ),
                     ),
@@ -212,119 +206,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          const Gap(16),
-          _SectionTitle('LOGGING & TRASEE'),
-          _SwitchTile(
-            icon: Icons.save_alt_rounded,
-            title: 'CSV automat',
-            subtitle: 'Salveaza fiecare drum ca CSV cu PID-uri si pozitie',
-            value: s.autoLogTrips,
-            onChanged: s.setAutoLogTrips,
-          ),
-          _ActionTile(
-            icon: Icons.delete_sweep_rounded,
-            title: 'Sterge traseele salvate',
-            subtitle: '${tp.saved.length} trasee inregistrate',
-            color: AppColors.danger,
-            onTap: tp.saved.isEmpty
-                ? null
-                : () => _confirmAndRun(
-                      context,
-                      title: 'Stergi toate traseele?',
-                      body: 'Aceasta operatiune nu poate fi anulata.',
-                      action: () => tp.clearAll(),
-                    ),
-          ),
-          _ActionTile(
-            icon: Icons.directions_car_filled_rounded,
-            title: 'Sterge cache vehicul',
-            subtitle: 'Elibereaza VIN-ul si datele NHTSA cache-uite',
-            color: AppColors.warn,
-            onTap: () async {
-              final v = context.read<VehicleProvider>();
-              if (v.vehicle == null) return;
-              await _confirmAndRun(
-                context,
-                title: 'Stergi vehiculul curent?',
-                body: 'Va trebui sa decodezi din nou VIN-ul.',
-                action: () async {
-                  // VehicleProvider has no public clear, mimic via vin removal
-                  final prefs = await Future.value(null);
-                  return prefs;
-                },
-              );
-            },
-          ),
+          const SizedBox(height: VSpace.s16),
 
-          const Gap(16),
-          _SectionTitle('COPILOT AI'),
-          _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CardHeader(
-                  icon: Icons.smart_toy_rounded,
-                  title: 'OpenAI API key',
-                  subtitle: 'Stocata local · nu paraseste tableta',
-                ),
-                const Gap(10),
-                TextField(
+          // ─── Logging & trips
+          _Group(title: 'Logging & trips', children: [
+            _SwitchTile(
+              icon: Icons.save_alt_rounded,
+              title: 'Automatic CSV',
+              subtitle: 'Save every trip as CSV (PIDs + GPS)',
+              value: s.autoLogTrips,
+              onChanged: s.setAutoLogTrips,
+            ),
+            _ActionTile(
+              icon: Icons.delete_sweep_rounded,
+              title: 'Clear saved trips',
+              subtitle: '${tp.saved.length} trips recorded',
+              status: VStatus.danger,
+              onTap: tp.saved.isEmpty
+                  ? null
+                  : () => _confirmAndRun(
+                        context,
+                        title: 'Delete all trips?',
+                        body: 'This action cannot be undone.',
+                        action: () => tp.clearAll(),
+                      ),
+            ),
+            _ActionTile(
+              icon: Icons.directions_car_filled_rounded,
+              title: 'Clear vehicle cache',
+              subtitle: 'Release the cached VIN + NHTSA data',
+              status: VStatus.warn,
+              onTap: () async {
+                final v = context.read<VehicleProvider>();
+                if (v.vehicle == null) return;
+                await _confirmAndRun(
+                  context,
+                  title: 'Clear current vehicle?',
+                  body: 'You will need to decode the VIN again.',
+                  action: () async {},
+                );
+              },
+              divider: false,
+            ),
+          ]),
+
+          const SizedBox(height: VSpace.s16),
+
+          // ─── Copilot AI
+          _Group(title: 'Copilot AI', children: [
+            VListTile(
+              leadingIcon: Icons.smart_toy_rounded,
+              title: 'OpenAI API key',
+              subtitle: 'Stored locally, never leaves the tablet',
+              divider: false,
+              trailing: SizedBox(
+                width: 180,
+                child: TextField(
                   controller: _apiCtrl,
                   obscureText: true,
-                  style: AppText.body(size: 13),
                   decoration: const InputDecoration(
-                    labelText: 'sk-...',
+                    hintText: 'sk-…',
                     isDense: true,
                   ),
-                  onChanged: (v) => s.setOpenAiKey(v.trim().isEmpty ? null : v.trim()),
+                  onChanged: (v) =>
+                      s.setOpenAiKey(v.trim().isEmpty ? null : v.trim()),
                 ),
-              ],
+              ),
             ),
-          ),
+          ]),
 
-          const Gap(16),
-          _SectionTitle('DESPRE'),
-          _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.info_rounded,
-                        color: AppColors.cyan, size: 22),
-                    const Gap(10),
-                    Text('Voltera',
-                        style: AppText.title(size: 16)),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.cyan.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'v1.0.0+1',
-                        style: AppText.digital(
-                            size: 11, color: AppColors.cyan),
-                      ),
-                    ),
-                  ],
-                ),
-                const Gap(8),
-                Text(
-                  'Suite profesionala de diagnoza OBD-II.\n'
-                  'Functioneaza 100% offline cu adaptor ELM327 prin WiFi '
-                  '(ESP32 custom sau adaptor comercial). Suporta scanare DTC, '
-                  'live PID polling, trip analysis, eco scoring si heatmap '
-                  'termic vehicul.',
-                  style: AppText.body(
-                      size: 12, color: AppColors.textMuted),
-                ),
-              ],
+          const SizedBox(height: VSpace.s16),
+
+          // ─── About
+          _Group(title: 'About', children: [
+            VListTile(
+              leadingIcon: Icons.info_outline_rounded,
+              title: 'Voltera',
+              subtitle: 'OBD-II diagnostics + fleet telemetry',
+              trailing: Text('v1.0.0+1',
+                  style: VType.mono13.copyWith(color: t.textMuted)),
+              divider: false,
             ),
-          ),
-          const Gap(40),
+          ]),
         ],
       ),
     );
@@ -336,115 +299,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String body,
     required Future Function() action,
   }) async {
+    final t = context.tokens;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surfaceHi,
-        title: Text(title, style: AppText.title(size: 16)),
-        content:
-            Text(body, style: AppText.body(color: AppColors.textMuted)),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('ANULEAZA',
-                style: AppText.label(color: AppColors.textMuted)),
+            child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(
+              backgroundColor: t.danger,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('CONFIRMA',
-                style: AppText.label(
-                    color: Colors.white, weight: FontWeight.w900)),
+            child: const Text('Confirm'),
           ),
         ],
       ),
     );
     if (ok == true) {
       await action();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: AppColors.ok,
-          content: Text('Operatiunea s-a executat',
-              style: AppText.body(color: Colors.black)),
-        ));
-      }
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: t.ok,
+          content: const Text('Done'),
+        ),
+      );
     }
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
+// ─────────────────────────────────────────────────────────────────────
+// Settings primitives
+// ─────────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 6, 0, 8),
-      child: Text(
-        text,
-        style: AppText.label(
-            size: 10,
-            color: AppColors.cyan,
-            weight: FontWeight.w900,
-            letterSpacing: 2.4),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final Widget child;
-  const _Card({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: child,
-    ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.05, end: 0);
-  }
-}
-
-class _CardHeader extends StatelessWidget {
-  final IconData icon;
+class _Group extends StatelessWidget {
   final String title;
-  final String subtitle;
-  const _CardHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  final List<Widget> children;
+  const _Group({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final t = context.tokens;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.cyan.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(10),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              VSpace.s4, 0, VSpace.s4, VSpace.s8),
+          child: Text(
+            title.toUpperCase(),
+            style: VType.label11.copyWith(color: t.textMuted),
           ),
-          child: Icon(icon, color: AppColors.cyan, size: 18),
         ),
-        const Gap(10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: AppText.body(size: 14, weight: FontWeight.w700)),
-              const Gap(2),
-              Text(subtitle,
-                  style: AppText.body(
-                      size: 11, color: AppColors.textMuted)),
-            ],
+        ClipRRect(
+          borderRadius: VRadius.brMd,
+          child: Container(
+            color: t.surface,
+            child: Column(children: children),
           ),
         ),
       ],
@@ -458,6 +375,7 @@ class _SwitchTile extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   final IconData icon;
+  final bool divider;
 
   const _SwitchTile({
     required this.title,
@@ -465,35 +383,19 @@ class _SwitchTile extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.icon,
+    this.divider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: SwitchListTile.adaptive(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        secondary: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.cyan.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: AppColors.cyan, size: 18),
-        ),
-        title: Text(title,
-            style: AppText.body(size: 14, weight: FontWeight.w700)),
-        subtitle: Text(subtitle,
-            style:
-                AppText.body(size: 11, color: AppColors.textMuted)),
+    return VListTile(
+      leadingIcon: icon,
+      title: title,
+      subtitle: subtitle,
+      divider: divider,
+      onTap: () => onChanged(!value),
+      trailing: Switch.adaptive(
         value: value,
-        activeColor: AppColors.cyan,
         onChanged: onChanged,
       ),
     );
@@ -509,6 +411,7 @@ class _SliderTile extends StatelessWidget {
   final int divisions;
   final IconData icon;
   final ValueChanged<double> onChanged;
+  final bool divider;
 
   const _SliderTile({
     required this.title,
@@ -519,22 +422,39 @@ class _SliderTile extends StatelessWidget {
     required this.divisions,
     required this.icon,
     required this.onChanged,
+    this.divider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
+    final t = context.tokens;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: VSpace.s16, vertical: VSpace.s12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeader(icon: icon, title: title, subtitle: subtitle),
+          Row(
+            children: [
+              Icon(icon, size: 18, color: t.textDefault),
+              const SizedBox(width: VSpace.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: VType.body15.copyWith(
+                            color: t.textStrong,
+                            fontWeight: FontWeight.w600)),
+                    Text(subtitle,
+                        style: VType.body13.copyWith(color: t.textMuted)),
+                  ],
+                ),
+              ),
+              Text(value.round().toString(),
+                  style: VType.mono15.copyWith(color: t.accent)),
+            ],
+          ),
           Slider(
             value: value,
             min: min,
@@ -546,6 +466,14 @@ class _SliderTile extends StatelessWidget {
         ],
       ),
     );
+
+    if (!divider) return row;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: t.hairline, width: 1)),
+      ),
+      child: row,
+    );
   }
 }
 
@@ -553,46 +481,32 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
+  final VStatus status;
   final VoidCallback? onTap;
+  final bool divider;
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
+    required this.status,
     required this.onTap,
+    this.divider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+    final t = context.tokens;
+    final color = onTap == null ? t.textDisabled : status.resolve(t);
+    return VListTile(
+      leading: SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(child: Icon(icon, color: color, size: 20)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-        title: Text(title,
-            style: AppText.body(
-                size: 14,
-                weight: FontWeight.w700,
-                color: onTap == null ? AppColors.textMuted : AppColors.text)),
-        subtitle: Text(subtitle,
-            style: AppText.body(size: 11, color: AppColors.textMuted)),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: AppColors.textMuted),
-        onTap: onTap,
-      ),
+      title: title,
+      subtitle: subtitle,
+      divider: divider,
+      onTap: onTap,
     );
   }
 }

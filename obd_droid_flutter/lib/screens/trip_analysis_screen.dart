@@ -2,19 +2,17 @@ import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:gap/gap.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 
 import '../core/services/location_service.dart';
+import '../design/design.dart';
 import '../providers/live_data_provider.dart';
 import '../providers/trip_provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/neon_card.dart';
-import '../widgets/racing_button.dart';
 
+/// Trip Analysis — focus: traseul GPS pe harta + scor eco dupa.
+/// Map mare, stats curate, single accent. Niciun glow.
 class TripAnalysisScreen extends StatefulWidget {
   const TripAnalysisScreen({super.key});
 
@@ -28,8 +26,6 @@ class _TripAnalysisScreenState extends State<TripAnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    // Cerem permisiune GPS la deschiderea ecranului. Daca user-ul accepta,
-    // pornim stream-ul de pozitii ca harta sa fie populata inca de la START.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final gps = LocationService.I;
       final granted = await gps.ensurePermission();
@@ -43,144 +39,55 @@ class _TripAnalysisScreenState extends State<TripAnalysisScreen> {
     final tp = context.watch<TripProvider>();
     final live = context.watch<LiveDataProvider>();
     final gps = context.watch<LocationService>();
-    final trip = _viewing ?? tp.activeTrip ?? (tp.saved.isNotEmpty ? tp.saved.first : null);
+    final trip = _viewing ??
+        tp.activeTrip ??
+        (tp.saved.isNotEmpty ? tp.saved.first : null);
     final isLive = trip != null && tp.activeTrip == trip;
+    final t = context.tokens;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('TRIP ANALYSIS'),
+    return VScaffold(
+      appBar: VAppBar(
+        title: 'Trip Analysis',
         actions: [
           if (tp.saved.isNotEmpty || tp.isRecording)
             IconButton(
               icon: const Icon(Icons.list_rounded),
-              tooltip: 'Trasee salvate',
+              tooltip: 'Saved trips',
               onPressed: () => _showHistorySheet(context, tp),
             ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: trip == null
-                  ? _emptyHero(gps)
-                  : _TripDetail(trip: trip, isLive: isLive, gps: gps),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
-                children: [
-                  if (tp.isRecording) ...[
-                    Expanded(
-                      child: RacingButton(
-                        label: 'STOP TRIP',
-                        icon: Icons.stop_rounded,
-                        color: AppColors.danger,
-                        isOn: true,
-                        height: 50,
-                        onPressed: () async {
-                          await tp.stopTrip();
-                          if (mounted) setState(() => _viewing = null);
-                        },
-                      ),
-                    ),
-                  ] else ...[
-                    Expanded(
-                      child: RacingButton(
-                        label: 'START TRIP',
-                        icon: Icons.play_arrow_rounded,
-                        color: AppColors.cyan,
-                        isOn: false,
-                        height: 50,
-                        onPressed: () {
-                          tp.startTrip(live);
-                          setState(() => _viewing = null);
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyHero(LocationService gps) {
-    final waiting = gps.isGranted && !gps.hasFix;
-    final gpsBadge = !gps.isGranted
-        ? ('GPS OFF', AppColors.warn, Icons.location_disabled_rounded)
-        : waiting
-            ? ('CAUT SATELITI...', AppColors.cyan, Icons.gps_not_fixed_rounded)
-            : ('GPS LIVE', AppColors.ok, Icons.gps_fixed_rounded);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
         children: [
-          // Harta reala OSM, centrata pe pozitia GPS curenta (sau Suceava
-          // ca fallback). Vizibila inca de la deschiderea ecranului.
-          NeonCard(
-            showGlow: true,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(gpsBadge.$3, size: 14, color: gpsBadge.$2),
-                    const Gap(6),
-                    Text(gpsBadge.$1,
-                        style: AppText.label(
-                            size: 10,
-                            color: gpsBadge.$2,
-                            weight: FontWeight.w900)),
-                    const Spacer(),
-                    if (gps.hasFix && gps.accuracyM != null)
-                      Text('±${gps.accuracyM!.toStringAsFixed(0)}m',
-                          style: AppText.label(
-                              size: 9, color: AppColors.textMuted)),
-                  ],
-                ),
-                const Gap(8),
-                AspectRatio(
-                  aspectRatio: 1.9,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _RealMap(
-                      samples: const [],
-                      highlightLast: true,
-                      liveLat: gps.hasFix ? gps.lat : null,
-                      liveLon: gps.hasFix ? gps.lon : null,
+          Expanded(
+            child: trip == null
+                ? _EmptyHero(gps: gps)
+                : _TripDetail(trip: trip, isLive: isLive, gps: gps),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+                top: VSpace.s8, bottom: VSpace.s16),
+            child: tp.isRecording
+                ? FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: t.danger,
+                      foregroundColor: Colors.white,
                     ),
+                    icon: const Icon(Icons.stop_rounded),
+                    label: const Text('Stop trip'),
+                    onPressed: () async {
+                      await tp.stopTrip();
+                      if (mounted) setState(() => _viewing = null);
+                    },
+                  )
+                : FilledButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Start trip'),
+                    onPressed: () {
+                      tp.startTrip(live);
+                      setState(() => _viewing = null);
+                    },
                   ),
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.1, end: 0),
-          const Gap(20),
-          Center(
-            child: Column(
-              children: [
-                Text('NICIUN TRASEU INREGISTRAT',
-                    textAlign: TextAlign.center,
-                    style: AppText.label(
-                        size: 13,
-                        color: AppColors.cyan,
-                        weight: FontWeight.w900)),
-                const Gap(8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Apasa START TRIP pentru a inregistra un drum. '
-                    'Harta urmareste pozitia GPS-ului in timp real.',
-                    textAlign: TextAlign.center,
-                    style: AppText.body(size: 12, color: AppColors.textMuted),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -188,144 +95,74 @@ class _TripAnalysisScreenState extends State<TripAnalysisScreen> {
   }
 
   Future<void> _showHistorySheet(
-      BuildContext context, TripProvider tp) async {
+    BuildContext context,
+    TripProvider tp,
+  ) async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
+      useSafeArea: true,
+      builder: (sheetCtx) {
+        final t = sheetCtx.tokens;
         final entries = [
           if (tp.activeTrip != null) tp.activeTrip!,
           ...tp.saved,
         ];
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Row(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                VSpace.s16, VSpace.s8, VSpace.s16, VSpace.s16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text('TRASEE INREGISTRATE',
-                        style: AppText.label(
-                            size: 11,
-                            color: AppColors.cyan,
-                            weight: FontWeight.w900)),
+                    const Text('Saved trips', style: VType.title18),
                     const Spacer(),
                     if (tp.saved.isNotEmpty)
                       TextButton.icon(
                         onPressed: () async {
                           await tp.clearAll();
-                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                         },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 16, color: AppColors.danger),
-                        label: Text('CLEAR ALL',
-                            style: AppText.label(
-                                size: 10,
-                                color: AppColors.danger,
-                                weight: FontWeight.w800)),
+                        icon: Icon(Icons.delete_outline_rounded,
+                            size: 16, color: t.danger),
+                        label: Text('Clear all',
+                            style: VType.body13
+                                .copyWith(color: t.danger)),
                       ),
                   ],
                 ),
-              ),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  itemCount: entries.length,
-                  separatorBuilder: (_, __) => const Gap(8),
-                  itemBuilder: (_, i) {
-                    final t = entries[i];
-                    final isActive = t == tp.activeTrip;
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        setState(() => _viewing = t);
-                        Navigator.pop(ctx);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceHi,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: isActive
-                                  ? AppColors.danger.withOpacity(0.5)
-                                  : AppColors.border),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.cyan.withOpacity(0.14),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                isActive
-                                    ? Icons.fiber_manual_record_rounded
-                                    : Icons.route_rounded,
-                                color: isActive
-                                    ? AppColors.danger
-                                    : AppColors.cyan,
-                                size: 18,
-                              ),
-                            ),
-                            const Gap(12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    isActive
-                                        ? 'INREGISTREAZA · ${_fmtDuration(t.duration)}'
-                                        : _fmtDate(t.startedAt),
-                                    style: AppText.label(
-                                        size: 10,
-                                        color: isActive
-                                            ? AppColors.danger
-                                            : AppColors.textMuted,
-                                        weight: FontWeight.w800),
-                                  ),
-                                  const Gap(2),
-                                  Text(
-                                    '${t.distanceKm.toStringAsFixed(1)} km · '
-                                    'max ${t.maxSpeedKmh.toStringAsFixed(0)} km/h · '
-                                    'eco ${t.ecoScore}',
-                                    style: AppText.body(size: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (!isActive)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded,
-                                    color: AppColors.textMuted, size: 18),
-                                onPressed: () async {
-                                  await tp.deleteTrip(t.id);
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                const SizedBox(height: VSpace.s12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: entries.length,
+                    itemBuilder: (_, i) {
+                      final tr = entries[i];
+                      final isActive = tr == tp.activeTrip;
+                      return _TripSheetItem(
+                        trip: tr,
+                        isActive: isActive,
+                        onTap: () {
+                          setState(() => _viewing = tr);
+                          Navigator.pop(sheetCtx);
+                        },
+                        onDelete: isActive
+                            ? null
+                            : () async {
+                                await tp.deleteTrip(tr.id);
+                                if (sheetCtx.mounted) {
+                                  Navigator.pop(sheetCtx);
+                                }
+                              },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -333,24 +170,117 @@ class _TripAnalysisScreenState extends State<TripAnalysisScreen> {
   }
 }
 
-String _fmtDate(DateTime d) {
-  final now = DateTime.now();
-  final diff = now.difference(d);
-  String hm =
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-  if (diff.inHours < 24) return 'AZI · $hm';
-  if (diff.inDays < 7) return '${diff.inDays} ZILE · $hm';
-  return '${d.day}.${d.month}.${d.year} · $hm';
+class _TripSheetItem extends StatelessWidget {
+  final Trip trip;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+  const _TripSheetItem({
+    required this.trip,
+    required this.isActive,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return VListTile(
+      leading: SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: isActive
+              ? const StatusDot(status: VStatus.danger, pulse: true, size: 10)
+              : Icon(Icons.route_rounded, color: t.textMuted, size: 20),
+        ),
+      ),
+      title: isActive
+          ? 'Recording · ${_fmtDuration(trip.duration)}'
+          : _fmtDate(trip.startedAt),
+      subtitle:
+          '${trip.distanceKm.toStringAsFixed(1)} km  ·  max ${trip.maxSpeedKmh.toStringAsFixed(0)} km/h  ·  eco ${trip.ecoScore}',
+      onTap: onTap,
+      trailing: onDelete != null
+          ? IconButton(
+              onPressed: onDelete,
+              icon: Icon(Icons.delete_outline_rounded,
+                  color: t.textDisabled, size: 18),
+            )
+          : null,
+    );
+  }
 }
 
-String _fmtDuration(Duration d) {
-  final h = d.inHours;
-  final m = d.inMinutes.remainder(60);
-  final s = d.inSeconds.remainder(60);
-  if (h > 0) return '${h}h ${m}m';
-  if (m > 0) return '${m}m ${s}s';
-  return '${s}s';
+// ─────────────────────────────────────────────────────────────────────
+// Empty hero
+// ─────────────────────────────────────────────────────────────────────
+
+class _EmptyHero extends StatelessWidget {
+  final LocationService gps;
+  const _EmptyHero({required this.gps});
+
+  @override
+  Widget build(BuildContext context) {
+    final waiting = gps.isGranted && !gps.hasFix;
+    final (label, status, icon) = !gps.isGranted
+        ? ('GPS off', VStatus.warn, Icons.location_disabled_rounded)
+        : waiting
+            ? ('Searching satellites', VStatus.info, Icons.gps_not_fixed_rounded)
+            : ('GPS live', VStatus.ok, Icons.gps_fixed_rounded);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s16),
+      children: [
+        VCard.hero(
+          padding: const EdgeInsets.all(VSpace.s16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: status.resolve(context.tokens)),
+                  const SizedBox(width: VSpace.s8),
+                  Text(label,
+                      style: VType.body13.copyWith(
+                          color: status.resolve(context.tokens))),
+                  const Spacer(),
+                  if (gps.hasFix && gps.accuracyM != null)
+                    Text('±${gps.accuracyM!.toStringAsFixed(0)} m',
+                        style: VType.body13.copyWith(
+                            color: context.tokens.textMuted)),
+                ],
+              ),
+              const SizedBox(height: VSpace.s12),
+              AspectRatio(
+                aspectRatio: 1.9,
+                child: ClipRRect(
+                  borderRadius: VRadius.brMd,
+                  child: _RealMap(
+                    samples: const [],
+                    highlightLast: true,
+                    liveLat: gps.hasFix ? gps.lat : null,
+                    liveLon: gps.hasFix ? gps.lon : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: VSpace.s24),
+        const EmptyState(
+          icon: Icons.route_rounded,
+          title: 'No trip recorded yet',
+          body: 'Tap Start trip to record a route. The map follows your GPS '
+              'position in real time.',
+        ),
+      ],
+    );
+  }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Trip detail
+// ─────────────────────────────────────────────────────────────────────
 
 class _TripDetail extends StatelessWidget {
   final Trip trip;
@@ -362,351 +292,360 @@ class _TripDetail extends StatelessWidget {
     required this.gps,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final eco = trip.ecoScore;
-    final hasGps = trip.hasGpsTrack;
-    // Label-ul header-ului hartii: distingem real GPS vs traseu sintetizat.
-    final mapLabel = hasGps
-        ? (isLive ? 'GPS LIVE · ${_fmtDuration(trip.duration)}' : 'GPS TRACE')
-        : (isLive
-            ? 'TRACE SIMULAT · ${_fmtDuration(trip.duration)}'
-            : 'TRACE SIMULAT');
-    final mapColor = hasGps
-        ? (isLive ? AppColors.danger : AppColors.ok)
-        : (isLive ? AppColors.warn : AppColors.cyan);
-    final mapIcon = hasGps
-        ? Icons.gps_fixed_rounded
-        : Icons.shuffle_rounded;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Map card
-          NeonCard(
-            showGlow: true,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(mapIcon, color: mapColor, size: 16),
-                    const Gap(8),
-                    Text(
-                      mapLabel,
-                      style: AppText.label(
-                          size: 10,
-                          color: mapColor,
-                          weight: FontWeight.w900),
-                    ),
-                    const Spacer(),
-                    if (isLive && gps.accuracyM != null) ...[
-                      Icon(Icons.signal_cellular_alt_rounded,
-                          size: 11,
-                          color: gps.accuracyM! < 15
-                              ? AppColors.ok
-                              : AppColors.warn),
-                      const Gap(3),
-                      Text('±${gps.accuracyM!.toStringAsFixed(0)}m',
-                          style: AppText.label(
-                              size: 9, color: AppColors.textMuted)),
-                      const Gap(8),
-                    ],
-                    Text('${trip.samples.length} pts',
-                        style: AppText.label(
-                            size: 9, color: AppColors.textMuted)),
-                  ],
-                ),
-                const Gap(8),
-                AspectRatio(
-                  aspectRatio: 1.9,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: hasGps
-                        ? _RealMap(
-                            samples: trip.samples,
-                            highlightLast: isLive,
-                            liveLat:
-                                isLive && gps.hasFix ? gps.lat : null,
-                            liveLon:
-                                isLive && gps.hasFix ? gps.lon : null,
-                          )
-                        : Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLo,
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: CustomPaint(
-                              painter: _TripMapPainter(
-                                samples: trip.samples,
-                                highlightLast: isLive,
-                                useGps: false,
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.1, end: 0),
-
-          const Gap(12),
-
-          // Eco score card
-          NeonCard(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                _EcoRing(score: eco),
-                const Gap(16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('ECO SCORE',
-                          style: AppText.label(
-                              size: 10,
-                              color: _ecoColor(eco),
-                              weight: FontWeight.w900)),
-                      const Gap(4),
-                      Text(_ecoLabel(eco),
-                          style: AppText.title(
-                              size: 18, color: _ecoColor(eco))),
-                      const Gap(4),
-                      Text(_ecoTip(trip),
-                          style: AppText.body(
-                              size: 12, color: AppColors.textMuted)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ).animate(delay: 100.ms).fadeIn(duration: 350.ms),
-
-          const Gap(12),
-
-          // Stats grid
-          Row(
-            children: [
-              Expanded(
-                  child: _statTile('DISTANTA',
-                      trip.distanceKm.toStringAsFixed(2), 'km', AppColors.cyan,
-                      Icons.straighten_rounded)),
-              const Gap(8),
-              Expanded(
-                  child: _statTile('DURATA', _fmtDuration(trip.duration),
-                      '', AppColors.cyan, Icons.timer_outlined)),
-              const Gap(8),
-              Expanded(
-                  child: _statTile('VITEZA',
-                      trip.avgSpeedKmh.toStringAsFixed(0), 'km/h',
-                      AppColors.cyan, Icons.speed_rounded)),
-            ],
-          ).animate(delay: 200.ms).fadeIn(),
-
-          const Gap(8),
-          Row(
-            children: [
-              Expanded(
-                  child: _statTile('MAX',
-                      trip.maxSpeedKmh.toStringAsFixed(0), 'km/h',
-                      AppColors.warn, Icons.flash_on_rounded)),
-              const Gap(8),
-              Expanded(
-                  child: _statTile('CONSUM',
-                      trip.consumptionL100.toStringAsFixed(1), 'L/100',
-                      AppColors.cyan, Icons.local_gas_station_rounded)),
-              const Gap(8),
-              Expanded(
-                  child: _statTile('CO₂',
-                      trip.co2Kg.toStringAsFixed(2), 'kg',
-                      AppColors.ok, Icons.cloud_outlined)),
-            ],
-          ).animate(delay: 250.ms).fadeIn(),
-
-          const Gap(12),
-
-          // Speed profile
-          NeonCard(
-            padding: const EdgeInsets.fromLTRB(14, 14, 8, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text('SPEED PROFILE', style: AppText.label(size: 10)),
-                    const Spacer(),
-                    Text(
-                      'avg ${trip.avgSpeedKmh.toStringAsFixed(0)} · max ${trip.maxSpeedKmh.toStringAsFixed(0)}',
-                      style: AppText.label(size: 9, color: AppColors.textDim),
-                    ),
-                  ],
-                ),
-                const Gap(8),
-                SizedBox(
-                  height: 130,
-                  child: _SpeedChart(samples: trip.samples),
-                ),
-              ],
-            ),
-          ).animate(delay: 300.ms).fadeIn(),
-
-          const Gap(12),
-
-          // Driving events
-          NeonCard(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('EVENIMENTE', style: AppText.label(size: 10)),
-                const Gap(10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _eventTile(
-                        icon: Icons.fast_forward_rounded,
-                        label: 'ACCELERARI',
-                        count: trip.harshAccelEvents.length,
-                        color: AppColors.warn,
-                      ),
-                    ),
-                    const Gap(10),
-                    Expanded(
-                      child: _eventTile(
-                        icon: Icons.fast_rewind_rounded,
-                        label: 'FRANARI',
-                        count: trip.harshBrakeEvents.length,
-                        color: AppColors.danger,
-                      ),
-                    ),
-                    const Gap(10),
-                    Expanded(
-                      child: _eventTile(
-                        icon: Icons.electric_bolt_rounded,
-                        label: 'MAX RPM',
-                        count: trip.maxRpm.round(),
-                        color: AppColors.cyan,
-                        showCount: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ).animate(delay: 350.ms).fadeIn(),
-        ],
-      ),
-    );
-  }
-
-  Widget _statTile(String label, String value, String unit, Color color,
-      IconData icon) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 13),
-              const Gap(4),
-              Expanded(
-                child: Text(label,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.label(size: 9.5)),
-              ),
-            ],
-          ),
-          const Gap(6),
-          RichText(
-            text: TextSpan(children: [
-              TextSpan(
-                  text: value, style: AppText.digital(size: 16, color: color)),
-              if (unit.isNotEmpty)
-                TextSpan(
-                    text: ' $unit',
-                    style:
-                        AppText.body(size: 9, color: AppColors.textMuted)),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _eventTile({
-    required IconData icon,
-    required String label,
-    required int count,
-    required Color color,
-    bool showCount = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const Gap(6),
-          Text(count.toString(),
-              style: AppText.digital(
-                  size: 18, color: color, weight: FontWeight.w900)),
-          const Gap(2),
-          Text(label,
-              style: AppText.label(size: 9, color: AppColors.textMuted)),
-        ],
-      ),
-    );
-  }
-
-  Color _ecoColor(int s) {
-    if (s >= 80) return AppColors.ok;
-    if (s >= 60) return AppColors.cyan;
-    if (s >= 40) return AppColors.warn;
-    return AppColors.danger;
+  VStatus _ecoStatus(int s) {
+    if (s >= 80) return VStatus.ok;
+    if (s >= 60) return VStatus.info;
+    if (s >= 40) return VStatus.warn;
+    return VStatus.danger;
   }
 
   String _ecoLabel(int s) {
-    if (s >= 90) return 'ECO MASTER';
-    if (s >= 80) return 'EXCELENT';
-    if (s >= 60) return 'BUN';
-    if (s >= 40) return 'MEDIU';
-    return 'AGRESIV';
+    if (s >= 90) return 'Eco master';
+    if (s >= 80) return 'Excellent';
+    if (s >= 60) return 'Good';
+    if (s >= 40) return 'Average';
+    return 'Aggressive';
   }
 
   String _ecoTip(Trip t) {
     if (t.harshBrakeEvents.length > 3) {
-      return 'Anticipeaza traficul pentru a reduce franarile bruste.';
+      return 'Anticipate traffic to reduce hard braking.';
     }
     if (t.harshAccelEvents.length > 3) {
-      return 'Apasa pedala progresiv — economisesti 10-15% combustibil.';
+      return 'Press the throttle progressively — saves 10–15% fuel.';
     }
     if (t.consumptionL100 > 9) {
-      return 'Pastreaza turatia sub 2500 RPM in zona urbana.';
+      return 'Keep RPM under 2500 in urban driving.';
     }
     if (t.maxSpeedKmh > 140) {
-      return 'Viteze peste 130 km/h cresc consumul exponential.';
+      return 'Above 130 km/h consumption rises exponentially.';
     }
-    return 'Stilul tau de condus este eficient. Continua tot asa!';
+    return 'Your driving style is efficient. Keep it up.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final hasGps = trip.hasGpsTrack;
+    final mapStatus =
+        hasGps ? (isLive ? VStatus.danger : VStatus.ok) : VStatus.info;
+    final mapLabel = hasGps
+        ? (isLive ? 'GPS live  ·  ${_fmtDuration(trip.duration)}' : 'GPS trace')
+        : (isLive
+            ? 'Synthetic  ·  ${_fmtDuration(trip.duration)}'
+            : 'Synthetic trace');
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s16),
+      children: [
+        // ─── Map card
+        VCard.hero(
+          padding: const EdgeInsets.all(VSpace.s16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  StatusDot(status: mapStatus, pulse: isLive),
+                  const SizedBox(width: VSpace.s8),
+                  Text(mapLabel,
+                      style: VType.body13.copyWith(color: t.textDefault)),
+                  const Spacer(),
+                  if (isLive && gps.accuracyM != null)
+                    Text('±${gps.accuracyM!.toStringAsFixed(0)} m',
+                        style: VType.body13.copyWith(color: t.textMuted)),
+                  const SizedBox(width: VSpace.s8),
+                  Text('${trip.samples.length} pts',
+                      style: VType.body13.copyWith(color: t.textMuted)),
+                ],
+              ),
+              const SizedBox(height: VSpace.s12),
+              AspectRatio(
+                aspectRatio: 1.9,
+                child: ClipRRect(
+                  borderRadius: VRadius.brMd,
+                  child: hasGps
+                      ? _RealMap(
+                          samples: trip.samples,
+                          highlightLast: isLive,
+                          liveLat: isLive && gps.hasFix ? gps.lat : null,
+                          liveLon: isLive && gps.hasFix ? gps.lon : null,
+                        )
+                      : Container(
+                          color: t.canvas,
+                          child: CustomPaint(
+                            painter: _SyntheticTracePainter(
+                              samples: trip.samples,
+                              highlightLast: isLive,
+                              accent: t.accent,
+                              hairline: t.hairline,
+                              ok: t.ok,
+                              danger: t.danger,
+                              warn: t.warn,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: VSpace.s12),
+
+        // ─── Eco score card
+        VCard(
+          child: Row(
+            children: [
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: LiveArcMeter(
+                  value: trip.ecoScore.toDouble(),
+                  max: 100,
+                  label: 'Eco',
+                  status: _ecoStatus(trip.ecoScore),
+                  thickness: 3,
+                ),
+              ),
+              const SizedBox(width: VSpace.s16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_ecoLabel(trip.ecoScore),
+                        style: VType.title18.copyWith(
+                            color: _ecoStatus(trip.ecoScore).resolve(t))),
+                    const SizedBox(height: VSpace.s4),
+                    Text(_ecoTip(trip),
+                        style:
+                            VType.body13.copyWith(color: t.textMuted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: VSpace.s12),
+
+        // ─── Stats grid (2x3)
+        _StatsGrid(trip: trip),
+
+        const SizedBox(height: VSpace.s16),
+
+        // ─── Speed chart
+        VCard(
+          padding: const EdgeInsets.fromLTRB(
+              VSpace.s20, VSpace.s16, VSpace.s12, VSpace.s8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('Speed profile',
+                      style: VType.title18.copyWith(color: t.textStrong)),
+                  const Spacer(),
+                  Text(
+                    'avg ${trip.avgSpeedKmh.toStringAsFixed(0)}  ·  max ${trip.maxSpeedKmh.toStringAsFixed(0)}',
+                    style: VType.body13.copyWith(color: t.textMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: VSpace.s12),
+              SizedBox(
+                height: 130,
+                child: _SpeedChart(samples: trip.samples, accent: t.accent),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: VSpace.s12),
+
+        // ─── Driving events
+        VCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Driving events',
+                  style: VType.title18.copyWith(color: t.textStrong)),
+              const SizedBox(height: VSpace.s16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _EventTile(
+                      icon: Icons.fast_forward_rounded,
+                      label: 'Hard accel',
+                      value: trip.harshAccelEvents.length.toString(),
+                      status: trip.harshAccelEvents.isEmpty
+                          ? VStatus.neutral
+                          : VStatus.warn,
+                    ),
+                  ),
+                  Container(width: 1, height: 56, color: t.hairline),
+                  Expanded(
+                    child: _EventTile(
+                      icon: Icons.fast_rewind_rounded,
+                      label: 'Hard brake',
+                      value: trip.harshBrakeEvents.length.toString(),
+                      status: trip.harshBrakeEvents.isEmpty
+                          ? VStatus.neutral
+                          : VStatus.danger,
+                    ),
+                  ),
+                  Container(width: 1, height: 56, color: t.hairline),
+                  Expanded(
+                    child: _EventTile(
+                      icon: Icons.electric_bolt_rounded,
+                      label: 'Max RPM',
+                      value: trip.maxRpm.round().toString(),
+                      status: VStatus.info,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
-/// Harta REALA cu tile-uri OpenStreetMap (stil dark CartoDB) + traseu
-/// colorat dupa viteza + markeri start/finish + pin live.
-///
-/// Folosita doar cand trip-ul are coordonate GPS reale. Pentru moduri demo
-/// fara GPS, fallback la _TripMapPainter (canvas custom).
+class _StatsGrid extends StatelessWidget {
+  final Trip trip;
+  const _StatsGrid({required this.trip});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Distance',
+                  value: trip.distanceKm.toStringAsFixed(2),
+                  unit: 'km',
+                  size: MetricSize.md,
+                  leadingIcon: Icons.straighten_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Duration',
+                  value: _fmtDuration(trip.duration),
+                  size: MetricSize.md,
+                  leadingIcon: Icons.timer_outlined,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Avg speed',
+                  value: trip.avgSpeedKmh.toStringAsFixed(0),
+                  unit: 'km/h',
+                  size: MetricSize.md,
+                  leadingIcon: Icons.speed_rounded,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: VSpace.cardGap),
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Top speed',
+                  value: trip.maxSpeedKmh.toStringAsFixed(0),
+                  unit: 'km/h',
+                  size: MetricSize.md,
+                  leadingIcon: Icons.flash_on_rounded,
+                  status: trip.maxSpeedKmh > 140
+                      ? VStatus.warn
+                      : VStatus.neutral,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Consumption',
+                  value: trip.consumptionL100.toStringAsFixed(1),
+                  unit: 'L/100',
+                  size: MetricSize.md,
+                  leadingIcon: Icons.local_gas_station_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'CO₂',
+                  value: trip.co2Kg.toStringAsFixed(2),
+                  unit: 'kg',
+                  size: MetricSize.md,
+                  leadingIcon: Icons.cloud_outlined,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _EventTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VStatus status;
+  const _EventTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.status,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = status.resolve(t);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: VSpace.s8),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: VSpace.s8),
+          Text(value,
+              style: VType.title24.copyWith(
+                color: color,
+                fontFamily: VType.mono,
+              )),
+          const SizedBox(height: 2),
+          Text(label,
+              style: VType.body13.copyWith(color: t.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Real OSM map (cleaned visuals)
+// ─────────────────────────────────────────────────────────────────────
+
 class _RealMap extends StatefulWidget {
   final List<TripSample> samples;
   final bool highlightLast;
@@ -731,7 +670,6 @@ class _RealMapState extends State<_RealMap> {
   @override
   void didUpdateWidget(_RealMap old) {
     super.didUpdateWidget(old);
-    // Daca e live, urmarim pinul curent in centrul hartii.
     if (widget.highlightLast &&
         widget.liveLat != null &&
         widget.liveLon != null &&
@@ -749,12 +687,12 @@ class _RealMapState extends State<_RealMap> {
       final last = withGps.last;
       return LatLng(last.lat!, last.lon!);
     }
-    // Fallback: Suceava
-    return const LatLng(47.6519, 26.2553);
+    return const LatLng(47.6519, 26.2553); // Suceava fallback
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final gpsSamples = widget.samples.where((s) => s.hasGps).toList();
     final polylinePoints =
         gpsSamples.map((s) => LatLng(s.lat!, s.lon!)).toList();
@@ -766,9 +704,8 @@ class _RealMapState extends State<_RealMap> {
         initialZoom: 15,
         minZoom: 4,
         maxZoom: 19,
-        backgroundColor: AppColors.surfaceLo,
+        backgroundColor: t.canvas,
         onMapReady: () {
-          // Fit-uim camera pe traseu la primul build.
           if (_firstFit || polylinePoints.length < 2) return;
           _firstFit = true;
           final bounds = LatLngBounds.fromPoints(polylinePoints);
@@ -781,32 +718,24 @@ class _RealMapState extends State<_RealMap> {
         },
       ),
       children: [
-        // Tile-uri OSM standard (consistent cu harta web)
         TileLayer(
-          urlTemplate:
-              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.obddroid.flutter',
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.voltera.flutter',
           maxZoom: 19,
           tileProvider: NetworkTileProvider(),
         ),
-        // Traseul colorat: glow sub-layer + linie peste
-        if (polylinePoints.length >= 2) ...[
+        if (polylinePoints.length >= 2)
           PolylineLayer(
             polylines: [
               Polyline(
                 points: polylinePoints,
-                strokeWidth: 8,
-                color: AppColors.cyan.withValues(alpha: 0.25),
-              ),
-              Polyline(
-                points: polylinePoints,
                 strokeWidth: 4,
-                color: AppColors.cyan,
+                color: t.accent,
+                borderStrokeWidth: 1.5,
+                borderColor: t.canvas,
               ),
             ],
           ),
-        ],
-        // Markeri start, sfarsit + evenimente harsh
         MarkerLayer(
           markers: [
             if (gpsSamples.isNotEmpty)
@@ -815,65 +744,53 @@ class _RealMapState extends State<_RealMap> {
                   gpsSamples.first.lat!,
                   gpsSamples.first.lon!,
                 ),
-                width: 24,
-                height: 24,
-                child: _MapDot(
-                  color: AppColors.ok,
-                  label: 'S',
-                ),
+                width: 16,
+                height: 16,
+                child: _MapDot(color: t.ok),
               ),
-            // Markeri pentru evenimente brute pe parcurs
             for (final s in gpsSamples)
               if (s.accel > 3.5 || s.accel < -4.0)
                 Marker(
                   point: LatLng(s.lat!, s.lon!),
-                  width: 12,
-                  height: 12,
+                  width: 8,
+                  height: 8,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: s.accel > 3.5
-                          ? AppColors.warn
-                          : AppColors.danger,
+                      color: s.accel > 3.5 ? t.warn : t.danger,
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: Colors.white, width: 1.5),
+                      border: Border.all(color: t.canvas, width: 1),
                     ),
                   ),
                 ),
-            // Pin live (cand inregistreaza)
             if (widget.highlightLast &&
                 widget.liveLat != null &&
                 widget.liveLon != null)
               Marker(
                 point: LatLng(widget.liveLat!, widget.liveLon!),
-                width: 36,
-                height: 36,
-                child: _LivePin(),
+                width: 28,
+                height: 28,
+                child: _LivePin(color: t.danger),
               )
             else if (gpsSamples.isNotEmpty)
-              // Pin final (cand trip-ul e oprit)
               Marker(
                 point: LatLng(
                   gpsSamples.last.lat!,
                   gpsSamples.last.lon!,
                 ),
-                width: 22,
-                height: 22,
-                child: _MapDot(
-                  color: AppColors.cyan,
-                  label: 'F',
-                ),
+                width: 16,
+                height: 16,
+                child: _MapDot(color: t.accent),
               ),
           ],
         ),
-        // Attribution discret in colt
+        // Attribution
         Padding(
           padding: const EdgeInsets.all(4),
           child: Align(
             alignment: Alignment.bottomLeft,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 6, vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(4),
@@ -881,9 +798,10 @@ class _RealMapState extends State<_RealMap> {
               child: const Text(
                 '© OpenStreetMap',
                 style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 9,
-                    fontFamily: 'Rajdhani'),
+                  color: Colors.white70,
+                  fontSize: 9,
+                  fontFamily: VType.sans,
+                ),
               ),
             ),
           ),
@@ -895,40 +813,25 @@ class _RealMapState extends State<_RealMap> {
 
 class _MapDot extends StatelessWidget {
   final Color color;
-  final String label;
-  const _MapDot({required this.color, required this.label});
+  const _MapDot({required this.color});
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     return Container(
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.6),
-            blurRadius: 8,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            fontFamily: 'Orbitron',
-          ),
-        ),
+        border: Border.all(color: t.canvas, width: 2),
       ),
     );
   }
 }
 
 class _LivePin extends StatefulWidget {
+  final Color color;
+  const _LivePin({required this.color});
+
   @override
   State<_LivePin> createState() => _LivePinState();
 }
@@ -948,42 +851,31 @@ class _LivePinState extends State<_LivePin>
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     return AnimatedBuilder(
       animation: _anim,
       builder: (_, __) {
-        final t = _anim.value;
+        final v = _anim.value;
         return Stack(
           alignment: Alignment.center,
           children: [
-            // Cerc de impuls (puls)
             Transform.scale(
-              scale: 0.6 + t * 1.4,
+              scale: 0.6 + v * 1.4,
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.danger
-                        .withValues(alpha: (1 - t).clamp(0, 1).toDouble()),
-                    width: 2,
-                  ),
+                  color: widget.color
+                      .withValues(alpha: (0.25 * (1 - v)).clamp(0, 0.25)),
                 ),
               ),
             ),
-            // Pin solid
             Container(
-              width: 16,
-              height: 16,
+              width: 12,
+              height: 12,
               decoration: BoxDecoration(
-                color: AppColors.danger,
+                color: widget.color,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.danger.withValues(alpha: 0.7),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                  ),
-                ],
+                border: Border.all(color: t.canvas, width: 2),
               ),
             ),
           ],
@@ -993,130 +885,36 @@ class _LivePinState extends State<_LivePin>
   }
 }
 
-class _EcoRing extends StatelessWidget {
-  final int score;
-  const _EcoRing({required this.score});
+// ─────────────────────────────────────────────────────────────────────
+// Synthetic trace painter — pentru trip-uri fara GPS (mock / demo)
+// ─────────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    final color = score >= 80
-        ? AppColors.ok
-        : score >= 60
-            ? AppColors.cyan
-            : score >= 40
-                ? AppColors.warn
-                : AppColors.danger;
-    return SizedBox(
-      width: 84,
-      height: 84,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: CircularProgressIndicator(
-              value: score / 100,
-              strokeWidth: 7,
-              backgroundColor: AppColors.surfaceHi,
-              valueColor: AlwaysStoppedAnimation(color),
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                score.toString(),
-                style: AppText.digital(
-                    size: 22, color: color, weight: FontWeight.w900),
-              ),
-              Text('/100',
-                  style:
-                      AppText.label(size: 8, color: AppColors.textMuted)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TripMapPainter extends CustomPainter {
+class _SyntheticTracePainter extends CustomPainter {
   final List<TripSample> samples;
   final bool highlightLast;
-  final bool useGps;
-  _TripMapPainter({
+  final Color accent;
+  final Color hairline;
+  final Color ok;
+  final Color danger;
+  final Color warn;
+
+  _SyntheticTracePainter({
     required this.samples,
     required this.highlightLast,
-    this.useGps = false,
+    required this.accent,
+    required this.hairline,
+    required this.ok,
+    required this.danger,
+    required this.warn,
   });
-
-  /// Proiectie locala equirectangular: o coord (lat,lon) → metri relativi
-  /// la centrul drumului. Pe distante mici (<50 km) eroarea e neglijabila si
-  /// merge mult mai natural decat Web Mercator.
-  ///
-  /// Returneaza pereche (x, y) in metri pe planul cartezian local.
-  static (double, double) _latLonToLocalM(
-      double lat, double lon, double lat0, double lon0) {
-    const r = 6371000.0;
-    final x = (lon - lon0) * pi / 180 * r * cos(lat0 * pi / 180);
-    final y = (lat - lat0) * pi / 180 * r;
-    return (x, y);
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Background grid + compass.
     _paintGrid(canvas, size);
-    _paintCompass(canvas, size);
 
-    if (samples.length < 2) {
-      final tp = TextPainter(
-        text: const TextSpan(
-          text: 'Astept date pentru harta...',
-          style: TextStyle(
-            color: AppColors.textDim,
-            fontSize: 12,
-            fontFamily: 'Rajdhani',
-            letterSpacing: 1.4,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(size.width / 2 - tp.width / 2, size.height / 2));
-      return;
-    }
+    if (samples.length < 2) return;
 
-    // Construim coordonate planare. Daca avem GPS, le derivam din lat/lon
-    // (proiectie equirectangular locala). Altfel folosim x/y sintetizat.
-    final pts = <Offset>[];
-    if (useGps) {
-      // Pivot = primul sample cu GPS.
-      final pivot = samples.firstWhere((s) => s.hasGps);
-      final lat0 = pivot.lat!;
-      final lon0 = pivot.lon!;
-      double? carryX;
-      double? carryY;
-      for (final s in samples) {
-        if (s.hasGps) {
-          final (mx, my) = _latLonToLocalM(s.lat!, s.lon!, lat0, lon0);
-          carryX = mx;
-          carryY = my;
-          pts.add(Offset(mx, my));
-        } else if (carryX != null) {
-          // Sample fara fix in mijlocul drumului: pastram ultima pozitie.
-          pts.add(Offset(carryX, carryY!));
-        } else {
-          pts.add(Offset.zero);
-        }
-      }
-    } else {
-      for (final s in samples) {
-        pts.add(Offset(s.x, s.y));
-      }
-    }
-
-    // Bounding box pe spatiul ales (metri).
+    final pts = [for (final s in samples) Offset(s.x, s.y)];
     double minX = pts.first.dx;
     double maxX = pts.first.dx;
     double minY = pts.first.dy;
@@ -1129,7 +927,7 @@ class _TripMapPainter extends CustomPainter {
     }
     final spanX = max(maxX - minX, 60.0);
     final spanY = max(maxY - minY, 60.0);
-    final pad = 24.0;
+    const pad = 24.0;
     final scale = min(
       (size.width - pad * 2) / spanX,
       (size.height - pad * 2) / spanY,
@@ -1142,15 +940,6 @@ class _TripMapPainter extends CustomPainter {
       return Offset(p.dx * scale + ox, size.height - (p.dy * scale + oy));
     }
 
-    // Path glow underlay.
-    final glow = Paint()
-      ..color = AppColors.cyan.withOpacity(0.25)
-      ..strokeWidth = 6
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-
     final path = Path();
     final first = toCanvas(0);
     path.moveTo(first.dx, first.dy);
@@ -1158,158 +947,78 @@ class _TripMapPainter extends CustomPainter {
       final p = toCanvas(i);
       path.lineTo(p.dx, p.dy);
     }
-    canvas.drawPath(path, glow);
+    final stroke = Paint()
+      ..color = accent
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, stroke);
 
-    // Speed-graded segments.
-    for (var i = 1; i < samples.length; i++) {
-      final a = toCanvas(i - 1);
-      final b = toCanvas(i);
-      final speed = samples[i].speed;
-      final color = _speedColor(speed);
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(a, b, paint);
-    }
+    // Start marker
+    canvas.drawCircle(first, 5, Paint()..color = ok);
 
-    // Start marker.
-    canvas.drawCircle(
-      first,
-      6,
-      Paint()..color = AppColors.ok,
-    );
-    canvas.drawCircle(
-      first,
-      9,
-      Paint()
-        ..color = AppColors.ok.withValues(alpha: 0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-
-    // End marker (current car).
+    // End marker
     final last = toCanvas(samples.length - 1);
-    if (highlightLast) {
-      canvas.drawCircle(
-        last,
-        9,
-        Paint()..color = AppColors.danger.withValues(alpha: 0.4),
-      );
-    }
     canvas.drawCircle(
       last,
       5,
-      Paint()..color = highlightLast ? AppColors.danger : AppColors.cyan,
+      Paint()..color = highlightLast ? danger : accent,
     );
 
-    // Tiny arrow showing heading at last point.
-    final h = samples.last.heading;
-    final tip = last + Offset(cos(h) * 14, -sin(h) * 14);
-    canvas.drawLine(
-      last,
-      tip,
-      Paint()
-        ..color = highlightLast ? AppColors.danger : AppColors.cyan
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Harsh-event annotations.
-    final paintHarshAccel = Paint()..color = AppColors.warn;
-    final paintHarshBrake = Paint()..color = AppColors.danger;
+    // Harsh-event annotations
     for (var i = 0; i < samples.length; i++) {
       final s = samples[i];
       if (s.accel > 3.5) {
-        canvas.drawCircle(toCanvas(i), 3.5, paintHarshAccel);
+        canvas.drawCircle(toCanvas(i), 2.5, Paint()..color = warn);
       } else if (s.accel < -4.0) {
-        canvas.drawCircle(toCanvas(i), 3.5, paintHarshBrake);
+        canvas.drawCircle(toCanvas(i), 2.5, Paint()..color = danger);
       }
     }
   }
 
   void _paintGrid(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.border
-      ..strokeWidth = 0.6;
-    const step = 28.0;
+      ..color = hairline
+      ..strokeWidth = 0.5;
+    const step = 32.0;
     for (double x = 0; x < size.width; x += step) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
     for (double y = 0; y < size.height; y += step) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
-    // Subtle diagonal accent
-    final accent = Paint()
-      ..color = AppColors.cyan.withOpacity(0.06)
-      ..strokeWidth = 1;
-    canvas.drawLine(Offset(0, size.height),
-        Offset(size.width, 0), accent);
-  }
-
-  void _paintCompass(Canvas canvas, Size size) {
-    final cx = size.width - 28.0;
-    final cy = 28.0;
-    final r = 14.0;
-    final ring = Paint()
-      ..color = AppColors.border
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    canvas.drawCircle(Offset(cx, cy), r, ring);
-    final n = TextPainter(
-      text: const TextSpan(
-        text: 'N',
-        style: TextStyle(
-          color: AppColors.cyan,
-          fontFamily: 'Rajdhani',
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    n.paint(canvas, Offset(cx - n.width / 2, cy - n.height / 2));
-  }
-
-  Color _speedColor(double v) {
-    // Smooth gradient: low=cyan -> high=warn -> very high=danger
-    if (v < 30) return AppColors.cyan;
-    if (v < 70) return Color.lerp(AppColors.cyan, AppColors.ok, (v - 30) / 40)!;
-    if (v < 110) {
-      return Color.lerp(AppColors.ok, AppColors.warn, (v - 70) / 40)!;
-    }
-    if (v < 160) {
-      return Color.lerp(AppColors.warn, AppColors.danger, (v - 110) / 50)!;
-    }
-    return AppColors.danger;
   }
 
   @override
-  bool shouldRepaint(_TripMapPainter old) =>
+  bool shouldRepaint(_SyntheticTracePainter old) =>
       old.samples.length != samples.length ||
-      old.highlightLast != highlightLast ||
-      old.useGps != useGps;
+      old.highlightLast != highlightLast;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Speed chart
+// ─────────────────────────────────────────────────────────────────────
 
 class _SpeedChart extends StatelessWidget {
   final List<TripSample> samples;
-  const _SpeedChart({required this.samples});
+  final Color accent;
+  const _SpeedChart({required this.samples, required this.accent});
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     if (samples.length < 2) {
       return Center(
         child: Text(
-          'Necesita >2 puncte',
-          style: AppText.label(size: 10, color: AppColors.textDim),
+          'Needs >2 points',
+          style: VType.body13.copyWith(color: t.textDisabled),
         ),
       );
     }
     final t0 = samples.first.tMs;
     final spots = <FlSpot>[
-      for (final s in samples)
-        FlSpot((s.tMs - t0) / 1000.0, s.speed),
+      for (final s in samples) FlSpot((s.tMs - t0) / 1000.0, s.speed),
     ];
     final maxX = spots.last.x;
     return LineChart(
@@ -1318,7 +1027,12 @@ class _SpeedChart extends StatelessWidget {
         maxX: maxX,
         minY: 0,
         maxY: max(60.0, samples.map((s) => s.speed).reduce(max) * 1.1),
-        gridData: const FlGridData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: t.hairline, strokeWidth: 0.5),
+        ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -1328,7 +1042,7 @@ class _SpeedChart extends StatelessWidget {
               interval: 40,
               getTitlesWidget: (v, _) => Text(
                 v.toInt().toString(),
-                style: AppText.label(size: 8, color: AppColors.textDim),
+                style: VType.body13.copyWith(color: t.textDisabled),
               ),
             ),
           ),
@@ -1347,7 +1061,7 @@ class _SpeedChart extends StatelessWidget {
                 final ss = (s % 60).toString().padLeft(2, '0');
                 return Text(
                   '$mm:$ss',
-                  style: AppText.label(size: 8, color: AppColors.textDim),
+                  style: VType.body13.copyWith(color: t.textDisabled),
                 );
               },
             ),
@@ -1357,25 +1071,37 @@ class _SpeedChart extends StatelessWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            curveSmoothness: 0.18,
-            barWidth: 2.2,
+            curveSmoothness: 0.2,
+            barWidth: 1.5,
             dotData: const FlDotData(show: false),
-            color: AppColors.cyan,
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.cyan.withOpacity(0.3),
-                  AppColors.cyan.withOpacity(0)
-                ],
-              ),
-            ),
+            color: accent,
           ),
         ],
         lineTouchData: const LineTouchData(enabled: false),
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────
+
+String _fmtDate(DateTime d) {
+  final now = DateTime.now();
+  final diff = now.difference(d);
+  final hm =
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  if (diff.inHours < 24) return 'Today  ·  $hm';
+  if (diff.inDays < 7) return '${diff.inDays} days ago  ·  $hm';
+  return '${d.day}.${d.month}.${d.year}  ·  $hm';
+}
+
+String _fmtDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  final s = d.inSeconds.remainder(60);
+  if (h > 0) return '${h}h ${m}m';
+  if (m > 0) return '${m}m ${s}s';
+  return '${s}s';
 }
