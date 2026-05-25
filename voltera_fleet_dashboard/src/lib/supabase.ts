@@ -2,10 +2,21 @@
  * Compat shim: re-exporta clientul browser ca `supabase` (forma veche)
  * pentru ca toate componentele existente sa continue sa functioneze.
  * Pentru server-side, importa direct din `@/lib/supabase/server`.
+ *
+ * Demo mode: cand NEXT_PUBLIC_DEMO_MODE=true, returneaza un mock client
+ * care simuleaza 5 vehicule local, fara backend Supabase necesar.
  */
 import { createClient } from './supabase/client'
+import { createMockClient, type MockClient } from './mock/client'
 
-export const supabase = createClient()
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+
+// Type-cast: mock-ul implementeaza subset-ul de API pe care il foloseste
+// dashboard-ul. TypeScript nu poate verifica strict compatibilitatea (nu am
+// generat tipuri din schema Supabase), dar la runtime functioneaza.
+export const supabase = (
+  isDemoMode ? createMockClient() : createClient()
+) as unknown as ReturnType<typeof createClient> & MockClient
 
 // ============ Types ============
 

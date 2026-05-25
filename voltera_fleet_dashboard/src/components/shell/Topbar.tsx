@@ -2,8 +2,9 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, LogOut, User as UserIcon, Wifi } from 'lucide-react'
+import { ChevronDown, LogOut, User as UserIcon, Wifi, Sun, Moon } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
+import { setTheme, getInitialTheme, themeFlag, type Theme } from '@/lib/ui-state'
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
@@ -26,6 +27,22 @@ export default function Topbar({
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const menuRef = useRef<HTMLDivElement>(null)
+  const [theme, setThemeState] = useState<Theme>('dark')
+
+  // Hidratare initiala — citeste din DOM (setat de inline script in layout.tsx)
+  useEffect(() => {
+    const initial = getInitialTheme()
+    setThemeState(initial)
+    themeFlag.set(initial)
+    const unsub = themeFlag.subscribe(setThemeState)
+    return () => {
+      unsub()
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
 
   // Inchide menu la click outside
   useEffect(() => {
@@ -69,6 +86,16 @@ export default function Topbar({
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Comuta pe light mode' : 'Comuta pe dark mode'}
+          aria-label="Comuta tema"
+          className="relative grid h-8 w-8 place-items-center rounded-full border border-border/70 bg-surface/60 text-textMuted transition hover:border-cyan/60 hover:text-cyan"
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
+
         {/* Realtime status */}
         <div className="flex items-center gap-1.5 rounded-full border border-ok/30 bg-ok/5 px-2.5 py-1">
           <span className="relative flex h-1.5 w-1.5">

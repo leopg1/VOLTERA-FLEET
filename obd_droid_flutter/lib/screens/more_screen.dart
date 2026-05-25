@@ -28,12 +28,8 @@ class MoreScreen extends StatelessWidget {
     final t = context.tokens;
 
     return VScaffold(
-      appBar: const VAppBar(
-        title: 'More',
-        subtitle: 'Tools, history & configuration',
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s24),
+        padding: const EdgeInsets.fromLTRB(0, VSpace.s16, 0, VSpace.s24),
         children: [
           // ─── Vehicle hero card
           VCard.hero(

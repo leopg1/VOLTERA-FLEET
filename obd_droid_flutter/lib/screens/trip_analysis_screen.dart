@@ -46,19 +46,20 @@ class _TripAnalysisScreenState extends State<TripAnalysisScreen> {
     final t = context.tokens;
 
     return VScaffold(
-      appBar: VAppBar(
-        title: 'Trip Analysis',
-        actions: [
-          if (tp.saved.isNotEmpty || tp.isRecording)
-            IconButton(
-              icon: const Icon(Icons.list_rounded),
-              tooltip: 'Saved trips',
-              onPressed: () => _showHistorySheet(context, tp),
-            ),
-        ],
-      ),
       body: Column(
         children: [
+          if (tp.saved.isNotEmpty || tp.isRecording)
+            Padding(
+              padding: const EdgeInsets.only(top: VSpace.s8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.list_rounded),
+                  tooltip: 'Saved trips',
+                  onPressed: () => _showHistorySheet(context, tp),
+                ),
+              ),
+            ),
           Expanded(
             child: trip == null
                 ? _EmptyHero(gps: gps)
@@ -719,9 +720,12 @@ class _RealMapState extends State<_RealMap> {
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate:
+              'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+          subdomains: const ['a', 'b', 'c', 'd'],
           userAgentPackageName: 'com.voltera.flutter',
           maxZoom: 19,
+          retinaMode: true,
           tileProvider: NetworkTileProvider(),
         ),
         if (polylinePoints.length >= 2)
@@ -796,7 +800,7 @@ class _RealMapState extends State<_RealMap> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Text(
-                '© OpenStreetMap',
+                '© OSM · © CARTO',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 9,

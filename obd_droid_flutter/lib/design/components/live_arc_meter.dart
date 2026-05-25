@@ -43,6 +43,27 @@ class LiveArcMeter extends StatelessWidget {
 
     return LayoutBuilder(builder: (context, c) {
       final size = math.min(c.maxWidth, c.maxHeight);
+      // Scale text to fit. <120 = compact (small badge), 120-220 = medium,
+      // 220+ = hero. Padding scales with size too.
+      final compact = size < 140;
+      final numberStyle = compact
+          ? VType.display40.copyWith(
+              color: t.textStrong,
+              fontSize: size * 0.32,
+              fontFamily: VType.mono,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            )
+          : size < 240
+              ? VType.display40.copyWith(
+                  color: t.textStrong,
+                  fontFamily: VType.mono,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                )
+              : VType.display72.copyWith(color: t.textStrong);
+      final pad = compact ? VSpace.s8 : VSpace.s20;
+      final showLabel = !compact;
+      final labelStyle = VType.label11.copyWith(color: t.textMuted);
+
       return SizedBox(
         width: size,
         height: size,
@@ -60,25 +81,30 @@ class LiveArcMeter extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(VSpace.s20),
+              padding: EdgeInsets.all(pad),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    label.toUpperCase(),
-                    style: VType.label11.copyWith(color: t.textMuted),
+                  if (showLabel) ...[
+                    Text(label.toUpperCase(), style: labelStyle),
+                    const SizedBox(height: VSpace.s8),
+                  ],
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _AnimatedNumber(
+                        value: value,
+                        style: numberStyle,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: VSpace.s8),
-                  _AnimatedNumber(
-                    value: value,
-                    style: VType.display72.copyWith(color: t.textStrong),
-                  ),
-                  if (unit != null) ...[
+                  if (unit != null && !compact) ...[
                     const SizedBox(height: VSpace.s4),
                     Text(unit!,
                         style: VType.body15.copyWith(color: t.textMuted)),
                   ],
-                  if (footer != null) ...[
+                  if (footer != null && !compact) ...[
                     const SizedBox(height: VSpace.s8),
                     footer!,
                   ],

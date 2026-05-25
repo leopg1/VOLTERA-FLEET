@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl, { Map, LngLatBoundsLike } from 'maplibre-gl'
 import type { TelemetrySample } from '@/lib/supabase'
+import { volteraMonochromeStyle } from '@/lib/map-style'
 
 type Props = {
   samples: TelemetrySample[]
@@ -18,7 +19,7 @@ export default function TripReplayMap({ samples, cursorIndex }: Props) {
     if (!containerRef.current || mapRef.current) return
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/dark',
+      style: volteraMonochromeStyle,
       center: [26.2553, 47.6519],
       zoom: 12,
       attributionControl: false,

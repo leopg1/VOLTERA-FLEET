@@ -110,6 +110,7 @@ class CloudSync {
     required double? battery,
     required double? fuelPct,
     required double? intakeAirTemp,
+    required double? mapKpa,
   }) {
     if (!isEnabled) return;
     _buffer.add({
@@ -127,6 +128,7 @@ class CloudSync {
       if (battery != null) 'battery': battery,
       if (fuelPct != null) 'fuel_pct': fuelPct,
       if (intakeAirTemp != null) 'intake_air_temp': intakeAirTemp,
+      if (mapKpa != null) 'map_kpa': mapKpa,
     });
     if (_buffer.length > maxBufferSize) {
       _buffer.removeFirst();

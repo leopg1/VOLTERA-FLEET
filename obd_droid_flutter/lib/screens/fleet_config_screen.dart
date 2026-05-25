@@ -110,6 +110,7 @@ class _FleetConfigScreenState extends State<FleetConfigScreen> {
       battery: 14.2,
       fuelPct: 67,
       intakeAirTemp: 24,
+      mapKpa: 38,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

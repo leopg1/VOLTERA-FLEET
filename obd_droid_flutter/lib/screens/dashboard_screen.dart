@@ -65,20 +65,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final battery = live.latest[0x42]?.value;
     final engineLoad = live.latest[0x04]?.value;
     final throttle = live.latest[0x11]?.value;
+    // Senzori suplimentari (emisi de simulatorul OBD-II prin ESP32)
+    final fuelPct = live.latest[0x2F]?.value;
+    final mapKpa = live.latest[0x0B]?.value;
+    final iat = live.latest[0x0F]?.value;
+    final maf = live.latest[0x10]?.value;
 
     return VScaffold(
-      appBar: VAppBar(
-        title: 'Dashboard',
-        actions: [
-          IconButton(
-            tooltip: 'Settings',
-            icon: const Icon(Icons.tune_rounded),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-        ],
-      ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 120),
         child: SingleChildScrollView(
@@ -86,17 +79,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1) Status pill (single row, no decoration)
-              const _ConnectionRow(),
+              // 1) Status pill + settings shortcut
+              Row(
+                children: [
+                  const Expanded(child: _ConnectionRow()),
+                  const SizedBox(width: VSpace.s8),
+                  IconButton(
+                    tooltip: 'Settings',
+                    icon: const Icon(Icons.tune_rounded),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
+                ],
+              ),
 
-              const SizedBox(height: VSpace.s20),
+              const SizedBox(height: VSpace.s16),
 
               // 2) Hero — Speed with live arc
               _SpeedHero(speed: speed, rpm: rpm),
 
               const SizedBox(height: VSpace.s16),
 
-              // 3) Secondary metrics — 2x2 grid
+              // 3) Secondary metrics — 2x2 grid (corp engine)
               _SecondaryGrid(
                 coolant: coolant,
                 battery: battery,
@@ -104,9 +110,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 throttle: throttle,
               ),
 
+              const SizedBox(height: VSpace.cardGap),
+
+              // 4) Tertiary metrics — 2x2 grid (admisie + combustibil)
+              _TertiaryGrid(
+                fuelPct: fuelPct,
+                mapKpa: mapKpa,
+                iat: iat,
+                maf: maf,
+              ),
+
               const SizedBox(height: VSpace.s16),
 
-              // 4) Telemetry chart — single series RPM, last 60s
+              // 5) Telemetry chart — single series RPM, last 60s
               _TelemetryCard(samples: _samples.toList(growable: false)),
             ],
           ),
@@ -332,6 +348,95 @@ class _SecondaryGrid extends StatelessWidget {
     if (v == null) return VStatus.neutral;
     if (v < 11.5) return VStatus.danger;
     if (v < 12.4) return VStatus.warn;
+    return VStatus.ok;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 2x2 tertiary metric grid — admisie aer + combustibil
+// ─────────────────────────────────────────────────────────────────────
+
+class _TertiaryGrid extends StatelessWidget {
+  final double? fuelPct;
+  final double? mapKpa;
+  final double? iat;
+  final double? maf;
+
+  const _TertiaryGrid({
+    required this.fuelPct,
+    required this.mapKpa,
+    required this.iat,
+    required this.maf,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Fuel level',
+                  value: fuelPct?.toStringAsFixed(0),
+                  unit: '%',
+                  size: MetricSize.lg,
+                  status: _fuelStatus(fuelPct),
+                  leadingIcon: Icons.local_gas_station_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Manifold P.',
+                  value: mapKpa?.toStringAsFixed(0),
+                  unit: 'kPa',
+                  size: MetricSize.lg,
+                  leadingIcon: Icons.compress_rounded,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: VSpace.cardGap),
+        Row(
+          children: [
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'Intake air',
+                  value: iat?.toStringAsFixed(0),
+                  unit: '°C',
+                  size: MetricSize.lg,
+                  leadingIcon: Icons.air_rounded,
+                ),
+              ),
+            ),
+            const SizedBox(width: VSpace.cardGap),
+            Expanded(
+              child: VCard(
+                child: MetricBlock(
+                  label: 'MAF',
+                  value: maf?.toStringAsFixed(1),
+                  unit: 'g/s',
+                  size: MetricSize.lg,
+                  leadingIcon: Icons.waves_rounded,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  VStatus _fuelStatus(double? f) {
+    if (f == null) return VStatus.neutral;
+    if (f < 10) return VStatus.danger;
+    if (f < 20) return VStatus.warn;
     return VStatus.ok;
   }
 }

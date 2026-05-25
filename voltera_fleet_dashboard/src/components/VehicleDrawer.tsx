@@ -7,6 +7,7 @@ import {
   type FleetStatusRow,
   type FleetEvent,
   type Trip,
+  type TelemetrySample,
 } from '@/lib/supabase'
 import {
   Gauge,
@@ -30,6 +31,14 @@ type Props = {
 export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
   const [events, setEvents] = useState<FleetEvent[]>([])
   const [trips, setTrips] = useState<Trip[]>([])
+  const [liveTelemetry, setLiveTelemetry] = useState<{
+    speed: number
+    rpm: number
+    coolant: number
+    throttle: number
+    battery: number
+    fuel: number
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -72,6 +81,26 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
           )
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'telemetry_samples',
+          filter: `vehicle_id=eq.${vehicle.vehicle_id}`,
+        },
+        (payload) => {
+          const s = payload.new as TelemetrySample
+          setLiveTelemetry({
+            speed: s.speed_kmh ?? 0,
+            rpm: s.rpm ?? 0,
+            coolant: s.coolant ?? 0,
+            throttle: s.throttle ?? 0,
+            battery: s.battery ?? 0,
+            fuel: s.fuel_pct ?? 0,
+          })
+        },
+      )
       .subscribe()
 
     return () => {
@@ -79,6 +108,14 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
       supabase.removeChannel(channel)
     }
   }, [vehicle.vehicle_id])
+
+  // Valorile live (din realtime) au prioritate fata de cele din poll
+  const liveSpeed = liveTelemetry?.speed ?? vehicle.speed_kmh ?? 0
+  const liveRpm = liveTelemetry?.rpm ?? vehicle.rpm ?? 0
+  const liveCoolant = liveTelemetry?.coolant ?? vehicle.coolant ?? 0
+  const liveThrottle = liveTelemetry?.throttle ?? vehicle.throttle ?? 0
+  const liveBattery = liveTelemetry?.battery ?? vehicle.battery ?? 0
+  const liveFuel = liveTelemetry?.fuel ?? vehicle.fuel_pct ?? 0
 
   const sevColor = (s: FleetEvent['severity']) =>
     s === 'critical'
@@ -103,9 +140,9 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
     : null
 
   return (
-    <aside className="fixed right-0 top-[52px] z-30 h-[calc(100vh-52px)] w-[420px] overflow-y-auto border-l border-border/60 bg-bg/95 backdrop-blur-xl">
-      {/* HEADER vehicul */}
-      <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border/60 bg-bg/95 p-5 backdrop-blur">
+    <aside className="drawer-slide-in fixed bottom-4 right-4 top-[68px] z-30 flex w-[420px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-bg/95 shadow-[0_12px_50px_-12px_rgba(0,212,255,0.45),0_0_0_1px_rgba(0,212,255,0.08)] backdrop-blur-xl">
+      {/* HEADER vehicul — fix in top-ul card-ului */}
+      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border/60 bg-surface/40 p-5">
         <div className="flex min-w-0 items-center gap-3">
           <div
             className="h-10 w-10 shrink-0 rounded-xl ring-2 ring-white/10 shadow-[0_0_18px_-4px]"
@@ -134,6 +171,9 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
           <X size={16} />
         </button>
       </header>
+
+      {/* CONTAINER SCROLLABIL */}
+      <div className="flex-1 overflow-y-auto pb-6">
 
       {/* STATUS + GPS card */}
       <section className="space-y-3 p-5">
@@ -174,14 +214,14 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
         )}
       </section>
 
-      {/* METRICI */}
+      {/* METRICI — text simplu, fara cadrane */}
       <section className="grid grid-cols-3 gap-2 px-5">
-        <Metric icon={<Gauge size={14} />} label="VITEZA" value={vehicle.speed_kmh ?? 0} unit="km/h" decimals={0} />
-        <Metric icon={<Activity size={14} />} label="RPM" value={vehicle.rpm ?? 0} unit="" decimals={0} />
-        <Metric icon={<Thermometer size={14} />} label="COOLANT" value={vehicle.coolant ?? 0} unit="°C" decimals={0} />
-        <Metric icon={<Battery size={14} />} label="BAT" value={vehicle.battery ?? 0} unit="V" decimals={2} />
-        <Metric icon={<Fuel size={14} />} label="FUEL" value={vehicle.fuel_pct ?? 0} unit="%" decimals={0} />
-        <Metric icon={<Wind size={14} />} label="THROTTLE" value={vehicle.throttle ?? 0} unit="%" decimals={0} />
+        <Metric icon={<Gauge size={14} />} label="VITEZA" value={liveSpeed} unit="km/h" decimals={0} />
+        <Metric icon={<Activity size={14} />} label="RPM" value={liveRpm} unit="" decimals={0} />
+        <Metric icon={<Thermometer size={14} />} label="COOLANT" value={liveCoolant} unit="°C" decimals={0} />
+        <Metric icon={<Battery size={14} />} label="BAT" value={liveBattery} unit="V" decimals={1} />
+        <Metric icon={<Fuel size={14} />} label="FUEL" value={liveFuel} unit="%" decimals={0} />
+        <Metric icon={<Wind size={14} />} label="THROTTLE" value={liveThrottle} unit="%" decimals={0} />
       </section>
 
       {/* EVENTS */}
@@ -245,7 +285,7 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
               key={t.id}
               className="overflow-hidden rounded-lg border border-border/60 bg-surface/40 transition hover:border-cyan/60 hover:bg-surface/70"
             >
-              <Link href={`/trip/${t.id}`} className="block p-2.5">
+              <Link href={`/trips/${t.id}`} className="block p-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-textMuted">
                     {new Date(t.started_at).toLocaleString('ro-RO')}
@@ -272,6 +312,8 @@ export default function VehicleDrawer({ vehicle, livePos, onClose }: Props) {
           ))}
         </ul>
       </section>
+
+      </div>{/* end CONTAINER SCROLLABIL */}
     </aside>
   )
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase, type FleetEvent, type FleetStatusRow } from '@/lib/supabase'
 import PageShell from '@/components/ui/PageShell'
 import { StatCard } from '@/components/ui/Card'
+import AIDtcExplainer from '@/components/AIDtcExplainer'
 import {
   AlertOctagon,
   AlertTriangle,
@@ -20,6 +21,8 @@ type StateFilter = 'all' | 'unresolved' | 'resolved'
 type EnrichedEvent = FleetEvent & {
   plate?: string
   driver_name?: string
+  make?: string
+  model?: string
 }
 
 export default function AlertsPage() {
@@ -48,11 +51,16 @@ export default function AlertsPage() {
       ;((v ?? []) as FleetStatusRow[]).forEach((row) =>
         vMap.set(row.vehicle_id, row),
       )
-      const enriched = ((ev ?? []) as FleetEvent[]).map((e) => ({
-        ...e,
-        plate: vMap.get(e.vehicle_id)?.plate,
-        driver_name: vMap.get(e.vehicle_id)?.driver_name ?? undefined,
-      }))
+      const enriched = ((ev ?? []) as FleetEvent[]).map((e) => {
+        const veh = vMap.get(e.vehicle_id)
+        return {
+          ...e,
+          plate: veh?.plate,
+          driver_name: veh?.driver_name ?? undefined,
+          make: veh?.make ?? undefined,
+          model: veh?.model ?? undefined,
+        }
+      })
       setEvents(enriched)
       setVehicles(vMap)
       setLoading(false)
@@ -285,6 +293,16 @@ export default function AlertsPage() {
                       </span>
                     )}
                   </div>
+                  {e.code && /^[PBCU]\d{4}$/i.test(e.code) && (
+                    <AIDtcExplainer
+                      code={e.code}
+                      plate={e.plate}
+                      make={e.make}
+                      model={e.model}
+                      title={e.title}
+                      description={e.description ?? undefined}
+                    />
+                  )}
                 </div>
                 {!e.resolved_at && (
                   <button

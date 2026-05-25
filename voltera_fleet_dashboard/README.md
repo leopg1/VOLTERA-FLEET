@@ -17,6 +17,7 @@ copy .env.local.example .env.local
 Apoi editeaza `.env.local` cu:
 - `NEXT_PUBLIC_SUPABASE_URL` — din Supabase Studio → Project Settings → API
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — `anon public` key (NU `service_role`)
+- `GROQ_API_KEY` — pentru AI Copilot / Explica DTC / Insights. Cheie **gratuita** (fara card) la <https://console.groq.com/keys>. Daca lipseste, AI-ul returneaza 503 dar restul aplicatiei merge normal.
 
 ### 2. Instalare si pornire
 
@@ -144,6 +145,20 @@ alter publication supabase_realtime add table public.vehicles;
 | `/alerts` | Lista evenimente · filtre severitate + state · butoane "rezolva" · Realtime |
 | `/analytics` | Grafice Recharts: distanta zilnica, distributie alerte, top 5 eco-drivers |
 | `/settings` | Profil dispecer · info Supabase · instructiuni tableta · logout |
+
+---
+
+## AI (Llama 3.3 70B via Groq)
+
+Trei integrari, toate prin Groq (Llama 3.3 70B, free tier 30 req/min + ~200 tok/s, fara card, fara restrictii UE). Cheia se seteaza in `.env.local` la `GROQ_API_KEY` (<https://console.groq.com/keys>).
+
+| Feature | Unde se vede | Endpoint |
+|---|---|---|
+| **AI Copilot** | Buton flotant bottom-right pe orice pagina. Chat in romana cu acces la snapshot-ul flotei (vehicule, ultimele 20 evenimente, ultimele 8 trasee). | `POST /api/ai/chat` |
+| **Explica DTC** | Buton "EXPLICA CU AI" sub fiecare alerta cu cod DTC (P0xxx / B0xxx / C0xxx / U0xxx) in `/alerts`. Returneaza cauze, simptome, actiuni, cost estimat. | `POST /api/ai/explain-dtc` |
+| **AI Insights** | Panou bottom-left pe Dashboard cand niciun vehicul nu e selectat. 3-4 observatii prioritizate (alerte critice, tendinte, fapte pozitive). | `GET /api/ai/insights` |
+
+Cheia e server-side (fara prefix `NEXT_PUBLIC_`), nu ajunge in browser. Tot contextul de flota e construit in `src/lib/ai/context.ts` direct din Supabase la fiecare cerere. Endpoint-urile DTC + Insights folosesc Groq JSON mode pentru raspunsuri garantat parseabile.
 
 ---
 

@@ -2,9 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
+import type maplibregl from 'maplibre-gl'
 import { supabase, type FleetStatusRow } from '@/lib/supabase'
 import VehicleDrawer from '@/components/VehicleDrawer'
 import AlertsTicker from '@/components/AlertsTicker'
+import AIInsightsPanel from '@/components/AIInsightsPanel'
+import TelemetryConstellation from '@/components/TelemetryConstellation'
+import { constellationFlag } from '@/lib/ui-state'
 import { Activity, Search } from 'lucide-react'
 
 const FleetMap = dynamic(() => import('@/components/FleetMap'), { ssr: false })
@@ -16,6 +20,16 @@ export default function FleetDashboard() {
   const [livePositions, setLivePositions] = useState<
     Record<string, { lat: number; lon: number; ts: number }>
   >({})
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
+  const [constellation, setConstellation] = useState(false)
+
+  useEffect(() => {
+    setConstellation(constellationFlag.get())
+    const unsub = constellationFlag.subscribe(setConstellation)
+    return () => {
+      unsub()
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -59,10 +73,18 @@ export default function FleetDashboard() {
     return c
   }, [vehicles])
 
+  const spotlightActive = selected != null
+
   return (
     <div className="relative h-full w-full">
-      {/* Map fundal */}
-      <div className="absolute inset-0">
+      {/* Map fundal — filter aplicat cand un vehicul e selectat (spotlight) */}
+      <div
+        className="absolute inset-0 transition-[filter] duration-500 ease-out"
+        style={{
+          transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)',
+          filter: spotlightActive ? 'var(--spotlight-filter)' : 'none',
+        }}
+      >
         <FleetMap
           vehicles={vehicles}
           onSelect={setSelectedId}
@@ -73,8 +95,25 @@ export default function FleetDashboard() {
               [id]: { lat, lon, ts: Date.now() },
             }))
           }
+          onMapReady={setMapInstance}
         />
       </div>
+
+      {/* Telemetry Constellation 3D overlay */}
+      <TelemetryConstellation
+        active={constellation}
+        map={mapInstance}
+        vehicles={vehicles}
+        livePositions={livePositions}
+      />
+
+      {/* Vignette overlay — focus pe vehicul cand spotlight activ */}
+      <div
+        className={`pointer-events-none absolute inset-0 z-[5] transition-opacity duration-500 ease-out ${
+          spotlightActive ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ background: 'var(--spotlight-vignette)' }}
+      />
 
       {/* Status pills (top-center floating) */}
       <div className="pointer-events-none absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-1.5">
@@ -166,6 +205,9 @@ export default function FleetDashboard() {
 
       {/* Alerts inbox (cand drawer e inchis) */}
       {!selected && <AlertsTicker onSelectVehicle={setSelectedId} />}
+
+      {/* AI Insights — bottom-left, vizibil mereu (nu intra in coliziune cu drawer-ul) */}
+      {!selected && <AIInsightsPanel />}
 
       {/* Drawer detalii vehicul — contine deja toate KPI-urile + GPS, deci
           KPI bar de jos NU mai e nevoie cat timp drawer-ul e deschis. */}

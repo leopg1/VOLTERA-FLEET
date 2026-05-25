@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   Car,
@@ -10,6 +11,8 @@ import {
   AlertTriangle,
   BarChart3,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 const NAV = [
@@ -22,31 +25,70 @@ const NAV = [
   { href: '/settings', label: 'Setari', icon: Settings },
 ]
 
+const STORAGE_KEY = 'voltera:sidebar-collapsed'
+
 export default function Sidebar() {
   const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Hydrate preference din localStorage (evita flash de hidratare)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored === 'true') setCollapsed(true)
+    } catch {
+      /* localStorage indisponibil — ignora */
+    }
+    setMounted(true)
+  }, [])
+
+  const toggle = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    try {
+      localStorage.setItem(STORAGE_KEY, String(next))
+    } catch {
+      /* ignora */
+    }
+  }
 
   return (
-    <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-border/60 bg-surface/60 backdrop-blur-xl">
+    <aside
+      data-collapsed={collapsed}
+      className={`relative flex h-full shrink-0 flex-col border-r border-border/60 bg-surface/60 backdrop-blur-xl transition-[width] duration-300 ease-out ${
+        collapsed ? 'w-[64px]' : 'w-[232px]'
+      }`}
+      style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
+    >
       {/* Brand */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-5 py-5">
+      <div
+        className={`flex items-center border-b border-border/60 ${
+          collapsed ? 'justify-center px-3 py-5' : 'gap-3 px-5 py-5'
+        }`}
+      >
         <VolteraLogo />
-        <div className="leading-tight">
-          <h1 className="font-display text-sm font-black tracking-[0.18em] text-white">
-            VOLTERA
-          </h1>
-          <p className="text-[9px] font-medium tracking-widest text-cyan">
-            FLEET CONTROL
-          </p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0 leading-tight">
+            <h1 className="truncate font-display text-sm font-black tracking-[0.18em] text-white">
+              VOLTERA
+            </h1>
+            <p className="truncate text-[9px] font-medium tracking-widest text-cyan">
+              FLEET CONTROL
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Section label */}
-      <div className="px-5 pb-2 pt-5 font-display text-[9px] font-bold tracking-widest text-textDim">
-        NAVIGARE
-      </div>
+      {!collapsed && (
+        <div className="px-5 pb-2 pt-5 font-display text-[9px] font-bold tracking-widest text-textDim">
+          NAVIGARE
+        </div>
+      )}
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 px-3">
+      <nav className={`flex-1 space-y-0.5 ${collapsed ? 'px-2 pt-5' : 'px-3'}`}>
         {NAV.map((item) => {
           const Icon = item.icon
           const active = item.exact
@@ -56,39 +98,77 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+              title={collapsed ? item.label : undefined}
+              aria-label={item.label}
+              className={`group relative flex items-center rounded-lg transition ${
+                collapsed
+                  ? 'justify-center px-2 py-2.5'
+                  : 'gap-3 px-3 py-2.5'
+              } ${
                 active
                   ? 'bg-cyan/10 text-white'
                   : 'text-textMuted hover:bg-surface/60 hover:text-white'
               }`}
             >
               {active && (
-                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-cyan shadow-[0_0_8px] shadow-cyan" />
+                <span
+                  className={`absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-cyan shadow-[0_0_8px] shadow-cyan ${
+                    collapsed ? '-left-2' : 'left-0'
+                  }`}
+                />
               )}
               <Icon
-                size={16}
-                className={active ? 'text-cyan' : 'text-textDim'}
+                size={collapsed ? 18 : 16}
+                className={`shrink-0 ${active ? 'text-cyan' : 'text-textDim'}`}
               />
-              <span
-                className={`font-display tracking-wider ${
-                  active ? 'font-bold' : 'font-medium'
-                }`}
-              >
-                {item.label}
-              </span>
+              {!collapsed && (
+                <span
+                  className={`truncate font-display text-sm tracking-wider ${
+                    active ? 'font-bold' : 'font-medium'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
             </Link>
           )
         })}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border/60 px-5 py-4">
-        <div className="flex items-center gap-2 text-[10px] font-medium tracking-widest text-textDim">
+      <div
+        className={`border-t border-border/60 ${
+          collapsed ? 'px-3 py-4' : 'px-5 py-4'
+        }`}
+      >
+        <div
+          className={`flex items-center text-[10px] font-medium tracking-widest text-textDim ${
+            collapsed ? 'justify-center' : 'gap-2'
+          }`}
+          title={collapsed ? 'SYSTEM ONLINE' : undefined}
+        >
           <span className="h-1.5 w-1.5 rounded-full bg-ok shadow-[0_0_6px] shadow-ok" />
-          SYSTEM ONLINE
+          {!collapsed && <span>SYSTEM ONLINE</span>}
         </div>
-        <p className="mt-1 text-[10px] text-textDim">v1.0 · ICE USV · 2026</p>
+        {!collapsed && (
+          <p className="mt-1 text-[10px] text-textDim">v1.0 · ICE USV · 2026</p>
+        )}
       </div>
+
+      {/* Collapse toggle — pe marginea dreapta, vizibil mereu */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={collapsed ? 'Extinde meniul' : 'Restrange meniul'}
+        title={collapsed ? 'Extinde meniul' : 'Restrange meniul'}
+        className="absolute top-7 -right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border/80 bg-surface text-textMuted shadow-[0_4px_12px_-4px_rgba(0,0,0,0.6)] transition hover:border-cyan/60 hover:text-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+      >
+        {collapsed ? (
+          <ChevronRight size={14} strokeWidth={2.5} />
+        ) : (
+          <ChevronLeft size={14} strokeWidth={2.5} />
+        )}
+      </button>
     </aside>
   )
 }

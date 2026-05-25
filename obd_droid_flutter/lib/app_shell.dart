@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/models/connection_state.dart';
+import 'core/services/cloud_sync.dart';
 import 'design/design.dart';
 import 'features/connect/connect_screen.dart';
 import 'providers/connection_provider.dart';
@@ -86,10 +87,21 @@ class _AppShellState extends State<AppShell> {
         if (!mounted) return;
         final live = context.read<LiveDataProvider>();
         live.bind(conn.service);
-        if (!wasReady &&
+        final diag = context.read<DiagnosticsProvider>();
+        final becameReady = !wasReady &&
             conn.state == ObdLinkState.ready &&
-            conn.service != null) {
-          context.read<DiagnosticsProvider>().scan(conn.service!);
+            conn.service != null;
+        if (becameReady) {
+          // Scan initial — sa avem snapshot DTC imediat dupa conectare.
+          diag.scan(conn.service!);
+          // Auto-poll DTC: doar daca CloudSync e configurat (altfel n-are
+          // sens sa stresam adaptorul fara destinatie cloud).
+          if (CloudSync.I.isEnabled) {
+            diag.startAutoPoll(conn.service!);
+          }
+        }
+        if (wasReady && conn.state != ObdLinkState.ready) {
+          diag.stopAutoPoll();
         }
       });
     }

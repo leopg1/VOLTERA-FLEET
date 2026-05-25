@@ -223,20 +223,17 @@ class _EcoScreenState extends State<EcoScreen> {
     final isMoving = speed >= 5;
 
     return VScaffold(
-      appBar: VAppBar(
-        title: 'Eco Driving',
-        subtitle: _ecoLabel(),
-        actions: [
-          IconButton(
-            tooltip: 'Reset session',
-            icon: const Icon(Icons.restart_alt_rounded),
-            onPressed: _resetSession,
-          ),
-        ],
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(0, VSpace.s12, 0, VSpace.s24),
+        padding: const EdgeInsets.fromLTRB(0, VSpace.s8, 0, VSpace.s24),
         children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              tooltip: 'Reset session',
+              icon: const Icon(Icons.restart_alt_rounded),
+              onPressed: _resetSession,
+            ),
+          ),
           // ─── HERO: eco score arc + consumption sub-stat
           _ScoreHero(
             score: _ecoScore,
@@ -706,60 +703,53 @@ class _ReadinessBlock extends StatelessWidget {
     final hasMil = diag.hasMil;
     final overall = hasMil ? VStatus.danger : VStatus.ok;
 
+    final monitors = <(String, bool)>[
+      ('Misfire', !hasMil),
+      ('Fuel', true),
+      ('Components', true),
+      ('Catalyst', !hasMil),
+      ('O₂ sensor', true),
+      ('O₂ heater', true),
+    ];
+
     return VCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('Emissions readiness',
-                  style: VType.title18.copyWith(color: t.textStrong)),
-              const Spacer(),
+              Expanded(
+                child: Text('Emissions readiness',
+                    style: VType.title18.copyWith(color: t.textStrong)),
+              ),
               StatusBadge(
                 label: hasMil ? 'Fail' : 'Pass',
                 status: overall,
-                icon: hasMil ? Icons.error_outline_rounded : Icons.check_rounded,
+                icon: hasMil
+                    ? Icons.error_outline_rounded
+                    : Icons.check_rounded,
+                dense: true,
               ),
             ],
           ),
-          const SizedBox(height: VSpace.s16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: VSpace.s8,
-            crossAxisSpacing: VSpace.s8,
-            childAspectRatio: 4.2,
+          const SizedBox(height: VSpace.s12),
+          Wrap(
+            spacing: VSpace.s8,
+            runSpacing: VSpace.s8,
             children: [
-              _miniMon(context, 'Misfire', !hasMil),
-              _miniMon(context, 'Fuel system', true),
-              _miniMon(context, 'Components', true),
-              _miniMon(context, 'Catalyst', !hasMil),
-              _miniMon(context, 'O₂ sensor', true),
-              _miniMon(context, 'O₂ heater', true),
+              for (final m in monitors)
+                StatusBadge(
+                  label: m.$1,
+                  status: m.$2 ? VStatus.ok : VStatus.danger,
+                  icon: m.$2
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.error_outline_rounded,
+                  dense: true,
+                ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _miniMon(BuildContext context, String label, bool ready) {
-    final t = context.tokens;
-    final status = ready ? VStatus.ok : VStatus.danger;
-    return Row(
-      children: [
-        StatusDot(status: status),
-        const SizedBox(width: VSpace.s8),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: VType.body13.copyWith(color: t.textDefault),
-          ),
-        ),
-      ],
     );
   }
 }

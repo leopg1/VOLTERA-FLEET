@@ -10,6 +10,19 @@ import { NextResponse, type NextRequest } from 'next/server'
  *   /_next/*, /favicon.ico
  */
 export async function updateSession(request: NextRequest) {
+  // ----- Demo bypass -----
+  // Sare peste auth daca NEXT_PUBLIC_DEMO_MODE=true. Util cand backend-ul
+  // Supabase nu e reachable (network blocat, proiect pe pauza, etc).
+  // NU folosi in productie — ofera acces fara autentificare.
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    if (request.nextUrl.pathname.startsWith('/login')) {
+      const home = request.nextUrl.clone()
+      home.pathname = '/'
+      return NextResponse.redirect(home)
+    }
+    return NextResponse.next({ request })
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 

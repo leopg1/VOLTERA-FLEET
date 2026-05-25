@@ -128,7 +128,8 @@ class PidCatalog {
       m[0x0D]!, // Speed
       m[0x05]!, // Coolant temp
       m[0x11]!, // Throttle
-      m[0x04]!, // Engine load
+      m[0x04]!, // Engine load (Calculated load)
+      m[0x0B]!, // Intake manifold pressure (MAP)
       m[0x0F]!, // IAT
       m[0x10]!, // MAF
       m[0x42]!, // Battery

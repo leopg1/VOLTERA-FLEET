@@ -56,10 +56,6 @@ class _DtcScreenState extends State<DtcScreen> {
     final filtered = _filtered(diag);
 
     return VScaffold(
-      appBar: const VAppBar(
-        title: 'Diagnostic Codes',
-        subtitle: 'ECU fault scan',
-      ),
       body: Column(
         children: [
           const SizedBox(height: VSpace.s8),
@@ -72,6 +68,7 @@ class _DtcScreenState extends State<DtcScreen> {
             permanentCount: diag.permanent.length,
             hasCodes: hasCodes,
             lastScan: diag.lastScan,
+            autoPolling: diag.isAutoPolling,
           ),
 
           const SizedBox(height: VSpace.s16),
@@ -204,6 +201,7 @@ class _Header extends StatelessWidget {
   final int permanentCount;
   final bool hasCodes;
   final DateTime? lastScan;
+  final bool autoPolling;
 
   const _Header({
     required this.count,
@@ -212,6 +210,7 @@ class _Header extends StatelessWidget {
     required this.permanentCount,
     required this.hasCodes,
     required this.lastScan,
+    required this.autoPolling,
   });
 
   @override
@@ -285,14 +284,49 @@ class _Header extends StatelessWidget {
               ],
             ),
           ],
-          if (lastScan != null) ...[
+          if (lastScan != null || autoPolling) ...[
             const SizedBox(height: VSpace.s12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Last scan · ${_fmtTime(lastScan!)}',
-                style: VType.body13.copyWith(color: t.textMuted),
-              ),
+            Row(
+              children: [
+                if (lastScan != null)
+                  Text(
+                    'Last scan · ${_fmtTime(lastScan!)}',
+                    style: VType.body13.copyWith(color: t.textMuted),
+                  ),
+                const Spacer(),
+                if (autoPolling)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: VSpace.s8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: t.ok.withValues(alpha: 0.12),
+                      borderRadius: VRadius.brSm,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: t.ok,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: VSpace.s8),
+                        Text(
+                          'AUTO-SCAN · 8s',
+                          style: VType.label11.copyWith(
+                            color: t.ok,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ],
         ],

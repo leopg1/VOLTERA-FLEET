@@ -6,85 +6,454 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
-html, body { background: #07090F; color: #fff; height: 100%; }
+/* ============================================
+   THEME TOKENS — dark (default) + light
+   Toate culorile aplicatiei vin de aici prin Tailwind colors:rgb(var(--*) ...)
+   ============================================ */
+
+:root,
+[data-theme='dark'] {
+  --c-bg: 7 9 15;             /* #07090F */
+  --c-surface: 13 17 23;      /* #0D1117 */
+  --c-surface-hi: 19 26 34;   /* #131A22 */
+  --c-border: 31 41 55;       /* #1F2937 */
+  --c-cyan: 0 212 255;        /* #00D4FF */
+  --c-cyan-deep: 0 145 184;   /* #0091B8 */
+  --c-ok: 0 230 118;          /* #00E676 */
+  --c-warn: 255 196 0;        /* #FFC400 */
+  --c-danger: 255 23 68;      /* #FF1744 */
+  --c-text-strong: 255 255 255;
+  --c-text-muted: 136 146 164; /* #8892A4 */
+  --c-text-dim: 74 82 96;     /* #4A5260 */
+  --c-on-accent: 7 9 15;      /* text on cyan in dark = dark */
+  --c-scrollbar: 0 212 255;   /* cyan scrollbar in dark */
+  /* Spotlight: intuneca fundalul, focus pe vehicul */
+  --spotlight-filter: saturate(0.6) contrast(1.15) brightness(0.85);
+  --spotlight-vignette: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 22%,
+    rgba(0, 0, 0, 0.55) 75%,
+    rgba(0, 0, 0, 0.78) 100%
+  );
+}
+
+[data-theme='light'] {
+  /* "Voltera Sky" — light theme cu accent albastru, NU alb. */
+  --c-bg: 219 234 254;          /* blue-100 — fundal aerian, deschis */
+  --c-surface: 240 247 255;     /* sky-50 cu tenta — carduri */
+  --c-surface-hi: 233 242 252;
+  --c-border: 147 197 253;      /* blue-300 vibrant */
+  --c-cyan: 2 132 199;          /* sky-600 — accent cyan adanc pe albastru */
+  --c-cyan-deep: 7 89 133;      /* sky-800 */
+  --c-ok: 21 128 61;            /* green-700 */
+  --c-warn: 180 83 9;           /* amber-700 */
+  --c-danger: 185 28 28;        /* red-700 */
+  --c-text-strong: 12 31 58;    /* navy adanc */
+  --c-text-muted: 51 84 130;    /* blue-800 mut */
+  --c-text-dim: 100 139 184;    /* blue-400 */
+  --c-on-accent: 255 255 255;
+  --c-scrollbar: 56 113 184;
+  /* Spotlight light: doar saturare scazuta, fara darkening agresiv */
+  --spotlight-filter: saturate(0.4) contrast(0.95);
+  --spotlight-vignette: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 22%,
+    rgba(15, 31, 58, 0.18) 75%,
+    rgba(15, 31, 58, 0.32) 100%
+  );
+}
+
+html,
+body {
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-text-strong));
+  height: 100%;
+  transition:
+    background-color 350ms cubic-bezier(0.25, 1, 0.5, 1),
+    color 350ms cubic-bezier(0.25, 1, 0.5, 1);
+}
 body { font-family: 'Rajdhani', system-ui, sans-serif; }
 
+/* Override Tailwind built-ins astfel incat sa respecte tema */
+[data-theme='light'] .text-white { color: rgb(var(--c-text-strong)) !important; }
+[data-theme='light'] .text-bg { color: rgb(var(--c-on-accent)) !important; }
+
 /* ============================================
-   Scrollbar styling — subtil, in tema cyan
+   Scrollbar styling — respecta tema
    ============================================ */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 212, 255, 0.18) transparent;
+  scrollbar-color: rgb(var(--c-scrollbar) / 0.22) transparent;
 }
 *::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.18);
+  background: rgb(var(--c-scrollbar) / 0.22);
   border-radius: 999px;
 }
-*::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.35); }
+*::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-scrollbar) / 0.4); }
 
 /* Utility: ascunde complet scrollbarul (pentru containere mici) */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ============================================
-   MapLibre overrides
+   MapLibre overrides — respecta tema
    ============================================ */
 .maplibregl-canvas { outline: none !important; }
 .maplibregl-popup-content {
-  background: #0D1117 !important;
-  color: #fff !important;
-  border: 1px solid #00D4FF55 !important;
+  background: rgb(var(--c-surface) / 0.95) !important;
+  color: rgb(var(--c-text-strong)) !important;
+  border: 1px solid rgb(var(--c-cyan) / 0.35) !important;
   border-radius: 12px !important;
   padding: 10px 14px !important;
   font-family: 'Rajdhani', sans-serif !important;
 }
 .maplibregl-popup-tip { display: none !important; }
 .maplibregl-ctrl-group {
-  background: rgba(13, 17, 23, 0.85) !important;
-  border: 1px solid rgba(31, 41, 55, 0.7) !important;
+  background: rgb(var(--c-surface) / 0.88) !important;
+  border: 1px solid rgb(var(--c-border) / 0.7) !important;
   backdrop-filter: blur(8px);
 }
 .maplibregl-ctrl-group button {
   background: transparent !important;
 }
 .maplibregl-ctrl-group button:hover {
-  background: rgba(0, 212, 255, 0.1) !important;
+  background: rgb(var(--c-cyan) / 0.12) !important;
+}
+.maplibregl-ctrl-group button span {
+  filter: var(--maplibre-ctrl-icon-filter, none);
+}
+[data-theme='light'] {
+  --maplibre-ctrl-icon-filter: invert(1);
 }
 
 /* ============================================
-   Vehicle markers pe harta
+   Voltera v-marker — fleet vehicle marker pe harta
+   ============================================
+   Marker tipografic flat: plate + heading triangle + halo at update.
+   Status colors via currentColor (setat prin .v-marker--{status}).
+   Halo apare ONE-SHOT cand soseste sample nou — heartbeat real,
+   nu animatie decorativa in loop.
+   ============================================ */
+.v-marker {
+  /* Container = exact dimensiunea masinii (SVG-ul are viewBox 40x64 = 5:8 ratio).
+     Cu anchor='center' din MapLibre, centrul box-ului e fix pe lat/lon. */
+  width: 22px;
+  height: 35px;
+  position: relative;
+  cursor: pointer;
+  pointer-events: auto;
+  color: #94a3b8; /* default — overwrite de .v-marker--{status} */
+  user-select: none;
+  -webkit-user-select: none;
+  transform-origin: center center;
+  transition: transform 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.v-marker__car {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* SVG-ul are viewBox 40x64; center vizual (20, 32) = centru box → centru lat/lon */
+  color: currentColor;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+  transform-origin: center center;
+  transform: rotate(0deg);
+  pointer-events: auto;
+  transition:
+    transform 200ms cubic-bezier(0.25, 1, 0.5, 1),
+    filter 200ms ease-out;
+}
+
+/* Elementele scoase complet — nu se mai folosesc */
+.v-marker__heading,
+.v-marker__plate,
+.v-marker__halo { display: none; }
+
+/* Status colors — aplicate pe body-ul masinii (currentColor in SVG) */
+.v-marker--driving { color: #e2e8f0; } /* alb-argintiu, masina in functiune */
+.v-marker--idle    { color: #facc15; } /* galben sof — opriri */
+.v-marker--alert   { color: #ef4444; z-index: 5; } /* rosu — atentie */
+.v-marker--offline { color: #4b5563; } /* gri — fara semnal */
+
+/* Selected: scale + glow cyan */
+.v-marker--selected {
+  transform: scale(1.25);
+  z-index: 10;
+}
+.v-marker--selected .v-marker__car {
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 10px rgba(0, 212, 255, 0.85));
+}
+
+/* Alert: glow pulsatoriu rosu */
+.v-marker--alert .v-marker__car {
+  animation: carAlert 1.8s ease-in-out infinite;
+}
+@keyframes carAlert {
+  0%, 100% { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 4px rgba(239, 68, 68, 0.5)); }
+  50%      { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 14px rgba(239, 68, 68, 0.85)); }
+}
+
+/* Offline: opacitate redusa */
+.v-marker--offline .v-marker__car {
+  opacity: 0.55;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+.v-marker--selected .v-marker__heading {
+  color: #00D4FF;
+  opacity: 1 !important;
+}
+
+/* Hover */
+.v-marker:hover { transform: scale(1.04); }
+.v-marker--selected:hover { transform: scale(1.12); }
+
+/* Tooltip — apare la hover, deasupra plate-ului + heading triangle */
+.v-marker__tooltip {
+  position: absolute;
+  bottom: calc(100% + 22px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(6, 8, 12, 0.96);
+  border: 1px solid rgba(31, 41, 55, 0.9);
+  white-space: nowrap;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  color: #C9CFD9;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease-out, transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  z-index: 100;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+}
+.v-marker__tooltip-plate {
+  display: block;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #F2F4F7;
+  margin-bottom: 1px;
+}
+.v-marker__tooltip-meta {
+  display: block;
+  color: #8892A4;
+  font-size: 10.5px;
+}
+.v-marker:hover .v-marker__tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-marker,
+  .v-marker__heading,
+  .v-marker__tooltip { transition: none; }
+  .v-marker--alert .v-marker__heading { animation: none; }
+}
+
+/* ============================================
+   Cockpit Gauge (Tesla-style arc)
+   ============================================ */
+.cockpit-gauge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 4px;
+}
+.cockpit-gauge__svg-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 160px;
+  aspect-ratio: 100 / 90;
+}
+.cockpit-gauge__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cockpit-gauge__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  /* shift up ca sa nu se suprapuna cu hub-ul */
+  padding-bottom: 12%;
+}
+.cockpit-gauge__value {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+.cockpit-gauge__unit {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 3px;
+}
+.cockpit-gauge__label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   Telemetry Constellation — 3D orbiting cards per vehicle
+   ============================================ */
+@keyframes constellationOrbit {
+  0% {
+    transform: rotate(0deg) translateX(85px) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.45;
+  }
+  50% {
+    transform: rotate(180deg) translateX(85px) rotate(-180deg);
+    opacity: 0.35;
+  }
+  75% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: rotate(360deg) translateX(85px) rotate(-360deg);
+    opacity: 1;
+  }
+}
+.constellation-orbit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  animation: constellationOrbit 14s linear infinite;
+}
+.constellation-card {
+  position: absolute;
+  left: -42px;
+  top: -16px;
+  width: 84px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px 3px;
+  border-radius: 6px;
+  border: 1px solid;
+  background: rgb(var(--c-surface) / 0.92);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.constellation-value {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.constellation-unit {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgb(var(--c-text-muted));
+  line-height: 1;
+}
+
+/* ============================================
+   Alerts theater banner animations
+   ============================================ */
+@keyframes alertsTheaterIn {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes alertsTheaterOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+.alerts-theater-enter {
+  animation: alertsTheaterIn 350ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+.alerts-theater-exit {
+  animation: alertsTheaterOut 350ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+@keyframes alertsProgressDrain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+.alerts-theater-progress {
+  animation: alertsProgressDrain 4200ms linear forwards;
+}
+
+/* ============================================
+   Drawer slide-in animation
+   ============================================ */
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.drawer-slide-in {
+  animation: drawerSlideIn 450ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* ============================================
+   Legacy .vehicle-marker — utilizat doar de TripReplayMap (cursor).
+   Va fi rescris la pasul #4 (Trip Replay cinematic).
    ============================================ */
 .vehicle-marker {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 900;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
   font-size: 11px;
-  color: #000;
-  border: 2px solid rgba(255,255,255,0.4);
-  box-shadow: 0 0 12px currentColor;
+  color: #06080C;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 10px currentColor;
   cursor: pointer;
-  transition: transform 0.2s;
-}
-.vehicle-marker:hover { transform: scale(1.2); }
-
-.pulse {
-  position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  opacity: 0.7;
-  animation: pulse 1.5s ease-out infinite;
-}
-@keyframes pulse {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
 }
 
 /* ============================================

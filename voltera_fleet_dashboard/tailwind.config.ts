@@ -2,19 +2,26 @@ import type { Config } from 'tailwindcss'
 
 export default {
   content: ['./src/**/*.{ts,tsx}'],
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        bg: '#07090F',
-        surface: '#0D1117',
-        surfaceHi: '#131A22',
-        border: '#1F2937',
-        cyan: { DEFAULT: '#00D4FF', deep: '#0091B8' },
-        ok: '#00E676',
-        warn: '#FFC400',
-        danger: '#FF1744',
-        textMuted: '#8892A4',
-        textDim: '#4A5260',
+        // Toate culorile vin acum din CSS variables.
+        // Fiecare are scheme dark/light definite in globals.css.
+        bg: 'rgb(var(--c-bg) / <alpha-value>)',
+        surface: 'rgb(var(--c-surface) / <alpha-value>)',
+        surfaceHi: 'rgb(var(--c-surface-hi) / <alpha-value>)',
+        border: 'rgb(var(--c-border) / <alpha-value>)',
+        cyan: {
+          DEFAULT: 'rgb(var(--c-cyan) / <alpha-value>)',
+          deep: 'rgb(var(--c-cyan-deep) / <alpha-value>)',
+        },
+        ok: 'rgb(var(--c-ok) / <alpha-value>)',
+        warn: 'rgb(var(--c-warn) / <alpha-value>)',
+        danger: 'rgb(var(--c-danger) / <alpha-value>)',
+        textStrong: 'rgb(var(--c-text-strong) / <alpha-value>)',
+        textMuted: 'rgb(var(--c-text-muted) / <alpha-value>)',
+        textDim: 'rgb(var(--c-text-dim) / <alpha-value>)',
       },
       fontFamily: {
         display: ['Orbitron', 'system-ui', 'sans-serif'],

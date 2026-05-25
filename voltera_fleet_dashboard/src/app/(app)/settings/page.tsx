@@ -13,10 +13,29 @@ import {
 } from 'lucide-react'
 
 export default async function SettingsPage() {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+
+  let user: {
+    id?: string
+    email?: string | null
+    user_metadata?: { full_name?: string }
+    last_sign_in_at?: string | null
+  } | null = null
+
+  if (!demoMode) {
+    try {
+      const supabase = createClient()
+      const result = await supabase.auth.getUser()
+      user = result.data.user
+    } catch {
+      user = null
+    }
+  } else {
+    user = {
+      email: 'demo@voltera.local',
+      user_metadata: { full_name: 'Demo Dispecer' },
+    }
+  }
 
   const displayName =
     (user?.user_metadata?.full_name as string | undefined) ??

@@ -126,6 +126,7 @@ class LiveDataProvider extends ChangeNotifier {
         battery: _latest[0x42]?.value,
         fuelPct: _latest[0x2F]?.value,
         intakeAirTemp: _latest[0x0F]?.value,
+        mapKpa: _latest[0x0B]?.value,
       );
     }
 
