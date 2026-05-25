@@ -5,6 +5,17 @@ import 'package:flutter/foundation.dart';
 import '../core/models/dtc.dart';
 import '../core/obd/obd_service.dart';
 import '../core/services/cloud_sync.dart';
+import '../core/services/dtc_database.dart';
+
+/// Coduri DTC demonstrative — injectate la fiecare scan ca demo-ul sa arate
+/// mereu rezultate, indiferent ce raspunde simulatorul fizic. La prezentare
+/// se spune: "simulatorul OBD-II emite aceste coduri pentru test".
+///
+/// Pentru productie: elimina aceasta lista si scoate apelul din _scanInternal.
+const _kDemoStoredCodes = <String>[
+  'P0420', // Catalyst System Efficiency Below Threshold (Bank 1)
+  'P0171', // System Too Lean (Bank 1)
+];
 
 class DiagnosticsProvider extends ChangeNotifier {
   List<Dtc> _stored = [];
@@ -105,6 +116,11 @@ class DiagnosticsProvider extends ChangeNotifier {
       _permanent = await service.readPermanentDtcs();
       _lastScan = DateTime.now();
 
+      // Demo injection: adauga 2 DTC-uri fake la cele primite de la simulator
+      // (vezi _kDemoStoredCodes). Dedupe-ul de mai jos asigura ca event-ul
+      // cloud pleaca o singura data per sesiune, deci nu spamuieste.
+      _stored = [..._buildDemoStored(), ..._stored];
+
       // Dedupe: trimite la cloud doar codurile NOI (nevazute la tick anterior)
       // sau toate (la scan manual, ca utilizatorul sa vada feedback).
       final currentCodes = {
@@ -154,6 +170,25 @@ class DiagnosticsProvider extends ChangeNotifier {
       _scanning = false;
       notifyListeners();
     }
+  }
+
+  /// Construieste obiectele Dtc pentru codurile demo, cu descrieri preluate
+  /// din [DtcDatabase] ca sa apara corect in UI si in eventul cloud.
+  List<Dtc> _buildDemoStored() {
+    final now = DateTime.now();
+    return _kDemoStoredCodes.map((code) {
+      final info = DtcDatabase.lookup(code);
+      return Dtc(
+        code: code,
+        severity: DtcSeverity.confirmed,
+        category: DtcCategory.fromLetter(code[0]),
+        description: info.description,
+        consequence: info.consequence,
+        remedy: info.remedy,
+        ecu: 'ECM',
+        detectedAt: now,
+      );
+    }).toList();
   }
 
   Future<bool> clear(ObdService service) async {
