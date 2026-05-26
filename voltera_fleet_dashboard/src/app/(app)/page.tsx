@@ -6,7 +6,6 @@ import type maplibregl from 'maplibre-gl'
 import { supabase, type FleetStatusRow } from '@/lib/supabase'
 import VehicleDrawer from '@/components/VehicleDrawer'
 import AlertsTicker from '@/components/AlertsTicker'
-import AIInsightsPanel from '@/components/AIInsightsPanel'
 import TelemetryConstellation from '@/components/TelemetryConstellation'
 import { constellationFlag } from '@/lib/ui-state'
 import { Activity, Search } from 'lucide-react'
@@ -205,9 +204,6 @@ export default function FleetDashboard() {
 
       {/* Alerts inbox (cand drawer e inchis) */}
       {!selected && <AlertsTicker onSelectVehicle={setSelectedId} />}
-
-      {/* AI Insights — bottom-left, vizibil mereu (nu intra in coliziune cu drawer-ul) */}
-      {!selected && <AIInsightsPanel />}
 
       {/* Drawer detalii vehicul — contine deja toate KPI-urile + GPS, deci
           KPI bar de jos NU mai e nevoie cat timp drawer-ul e deschis. */}
